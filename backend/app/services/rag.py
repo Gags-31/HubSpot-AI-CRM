@@ -1,37 +1,33 @@
-"""RAG layer: TF-IDF-ish retrieval over customer memory + CRM records."""
-import math
-import re
-from collections import Counter
-
-_STORE: list[dict] = []
+"""Retrieval-Augmented Generation over CRM data (vector store + optional LLM)."""
+from app.services import llm, vectorstore
 
 
-def _tokens(text: str) -> list[str]:
-    return re.findall(r"\w+", text.lower())
+def search(query: str, k: int = 4, customer_id: str | None = None) -> list[dict]:
+    return vectorstore.search(query, k, customer_id)
 
 
-def index(doc_id: str, text: str):
-    _STORE.append({"id": doc_id, "text": text, "vec": Counter(_tokens(text))})
-
-
-def search(query: str, k: int = 3) -> list[dict]:
-    qv = Counter(_tokens(query))
-    if not qv:
-        return []
-
-    def cosine(a, b):
-        keys = set(a) | set(b)
-        dot = sum(a[x] * b[x] for x in keys)
-        na = math.sqrt(sum(v * v for v in a.values()))
-        nb = math.sqrt(sum(v * v for v in b.values()))
-        return dot / (na * nb) if na and nb else 0.0
-
-    scored = sorted(_STORE, key=lambda d: cosine(qv, d["vec"]), reverse=True)
-    return [{"id": d["id"], "text": d["text"]} for d in scored[:k] if cosine(qv, d["vec"]) > 0]
-
-
-def answer(query: str) -> dict:
-    hits = search(query)
+def answer(query: str, customer_id: str | None = None) -> dict:
+    hits = search(query, 4, customer_id)
+    context = "\n".join(f"[{h['source']} | {h['customer_id']}] {h['text']}" for h in hits)
+    generated = llm.answer(query, context)
+    if generated["answer"]:
+        return {
+            "answer": generated["answer"],
+            "engine": "llm+rag",
+            "grounded": True,
+            "sources": hits,
+            "context_chars": len(context),
+        }
     if not hits:
-        return {"answer": "No relevant CRM data found.", "sources": []}
-    return {"answer": f"Based on your CRM data: {hits[0]['text'][:300]}", "sources": hits}
+        return {"answer": "No relevant records found in the CRM for that question.", "engine": "rag", "grounded": False, "sources": []}
+    top = hits[0]
+    return {
+        "answer": (
+            f"From {top['source']} for {top['customer_id']}: {top['text'][:400]}\n"
+            f"Related matches: {', '.join(h['id'] for h in hits[1:]) or 'none'}"
+        ),
+        "engine": "rag-retrieval",
+        "grounded": True,
+        "sources": hits,
+        "context_chars": len(context),
+    }

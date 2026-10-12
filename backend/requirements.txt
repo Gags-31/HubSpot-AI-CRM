@@ -1,5 +1,15 @@
+# Core
 fastapi
 uvicorn
 pydantic
-# Optional production deps (install as needed):
-# kafka-python, pyspark, openai-whisper, psycopg2-binary, pymongo, chromadb
+
+# Optional AI / data engines (installed on demand; system degrades gracefully)
+# openai-whisper        # speech-to-text
+# sentence-transformers # embeddings
+# scikit-learn          # churn / purchase models
+# kafka-python          # event streaming
+# pyspark               # big-data analytics
+# reportlab             # high-fidelity PDF proposals
+# psycopg2-binary       # PostgreSQL
+# pymongo               # MongoDB
+# chromadb              # vector database

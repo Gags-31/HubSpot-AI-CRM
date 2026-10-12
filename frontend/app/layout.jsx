@@ -1,16 +1,11 @@
-import "./globals.css";
-
-export const metadata = {
-  title: "HubSpot — Agentic AI CRM",
-  description: "Conversational customer management and automated proposal generation",
-};
-
 const nav = [
   ["/web/", "Dashboard"],
-  ["/web/chat/", "Conversation"],
+  ["/web/chat/", "Live Chat"],
   ["/web/products/", "Products"],
   ["/web/orders/", "Orders"],
+  ["/web/proposals/", "Proposals"],
   ["/web/consumers/", "Customer 360"],
+  ["/web/platform/", "Platform"],
   ["/architecture.html", "Architecture"],
   ["/docs", "API Docs"],
 ];
@@ -20,7 +15,7 @@ export default function RootLayout({ children }) {
     <html lang="en">
       <body>
         <header>
-          <div className="brand">HubSpot <span>AI CRM</span></div>
+          <div className="brand">HubSpot <span>Agentic AI CRM</span></div>
           <nav>
             {nav.map(([href, label]) => (
               <a key={href} href={href}>{label}</a>

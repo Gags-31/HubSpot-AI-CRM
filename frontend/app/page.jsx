@@ -7,13 +7,14 @@ export default function Dashboard() {
   const [customers, setCustomers] = useState([]);
   const [products, setProducts] = useState([]);
   const [orders, setOrders] = useState([]);
+  const [portfolio, setPortfolio] = useState(null);
   const [err, setErr] = useState(null);
 
   useEffect(() => {
     (async () => {
       try {
-        const [h, c, p, o] = await Promise.all([api.health(), api.customers(), api.products(), api.orders()]);
-        setHealth(h); setCustomers(c); setProducts(p); setOrders(o);
+        const [h, c, p, o, pf] = await Promise.all([api.health(), api.customers(), api.products(), api.orders(), api.portfolio()]);
+        setHealth(h); setCustomers(c); setProducts(p.products); setOrders(o); setPortfolio(pf);
       } catch (e) { setErr(String(e)); }
     })();
   }, []);
@@ -23,29 +24,36 @@ export default function Dashboard() {
   return (
     <>
       <h1>HubSpot Dashboard</h1>
-      <p>AI-first CRM — conversation in, structured intelligence out.</p>
+      <p>Conversation in, structured intelligence out. Version {health?.version ?? "—"} · {health?.agents ?? "—"} agents · DB: {health?.database}</p>
       {err && <pre>Error: {err}</pre>}
 
       <h2>Key metrics</h2>
       <div className="grid cols-3">
         <div className="card"><div className="kpi-label">Consumers</div><div className="stat">{customers.length}</div></div>
-        <div className="card"><div className="kpi-label">Products</div><div className="stat">{products.length}</div></div>
+        <div className="card"><div className="kpi-label">Conversations</div><div className="stat">{portfolio?.conversations ?? 0}</div></div>
         <div className="card"><div className="kpi-label">Orders</div><div className="stat">{orders.length}</div></div>
-        <div className="card"><div className="kpi-label">Order value (INR)</div><div className="stat">{fmt(revenue)}</div></div>
-        <div className="card"><div className="kpi-label">Proposals</div><div className="stat">auto</div></div>
-        <div className="card"><div className="kpi-label">API status</div><div className="stat" style={{ fontSize: 18 }}>{health?.healthy ? "online" : "…"}</div></div>
+        <div className="card"><div className="kpi-label">Revenue (INR)</div><div className="stat">{fmt(revenue)}</div></div>
+        <div className="card"><div className="kpi-label">Catalog items</div><div className="stat">{products.length}</div></div>
+        <div className="card"><div className="kpi-label">Negative sentiment</div><div className="stat">{portfolio?.negative_sentiment?.length ?? 0}</div></div>
+      </div>
+
+      <h2>Portfolio</h2>
+      <div className="card">
+        {(portfolio?.high_value ?? []).map((c) => (
+          <p key={c.customer_id}><b>{c.customer_id}</b> · {c.total_conversations} conversations · {c.total_orders} orders · ₹{fmt(c.total_spend)}</p>
+        ))}
+        {!portfolio?.high_value?.length && <p>No data yet — open the Live Chat page and start a conversation.</p>}
       </div>
 
       <h2>Modules</h2>
       <div className="grid cols-2">
-        <div className="card"><h3>Conversational CRM</h3><p>Text and voice conversations that the AI records and understands. Open <a href="/web/chat/">the conversation view</a>.</p></div>
-        <div className="card"><h3>Proposal Engine</h3><p>Terms extracted from conversation, missing fields detected, proposal rendered automatically.</p></div>
-        <div className="card"><h3>Product &amp; Order Workspace</h3><p>Catalog with budget-fit and recommendations. Place orders on the <a href="/web/orders/">orders page</a>.</p></div>
-        <div className="card"><h3>Customer 360°</h3><p>Memory, prediction and next-best-action for every consumer. See <a href="/web/consumers/">Customer 360</a>.</p></div>
+        <div className="card"><h3>Conversational CRM</h3><p>Real-time WebSocket chat with live entity extraction. <a href="/web/chat/">Open live chat</a>.</p></div>
+        <div className="card"><h3>Proposal Engine</h3><p>Terms extracted from conversation, missing fields auto-asked, versioning and PDF export. <a href="/web/proposals/">Proposals</a>.</p></div>
+        <div className="card"><h3>Commerce</h3><p>Catalog with budget-fit and recommendations, cart and order lifecycle. <a href="/web/products/">Products</a> · <a href="/web/orders/">Orders</a>.</p></div>
+        <div className="card"><h3>Intelligence</h3><p>Customer 360°, memory, ML predictions and next-best-action. <a href="/web/consumers/">Customer 360</a>.</p></div>
+        <div className="card"><h3>Platform</h3><p>Agents, telemetry, model training, background jobs, Kafka/Spark hooks, audit trail. <a href="/web/platform/">Platform</a>.</p></div>
+        <div className="card"><h3>Architecture</h3><p>Per-module flowcharts render live at <a href="/architecture.html">/architecture.html</a>.</p></div>
       </div>
-
-      <h2>Architecture</h2>
-      <p>Flowcharts for every module (Mermaid) are available at <a href="/architecture.html">/architecture.html</a>.</p>
     </>
   );
 }

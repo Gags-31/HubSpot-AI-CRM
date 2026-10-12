@@ -1,7 +1,19 @@
-"""In-memory CRM store (swap for PostgreSQL/MongoDB in production)."""
-from app.models import Conversation, Customer, Proposal
+"""Compatibility shim.
 
-customers: dict[str, Customer] = {}
-conversations: dict[str, Conversation] = {}
-proposals: dict[str, Proposal] = {}
-customer_memory: dict[str, dict] = {}
+Older modules imported ``app.db``; the data layer now lives in
+``app.repository`` (SQLite) with business rules in ``app.services.crm``.
+"""
+from app import repository
+from app.services import crm
+
+customers: dict = {}
+conversations: dict = {}
+proposals: dict = {}
+customer_memory: dict = {}
+
+
+def init() -> None:
+    repository.init_db()
+
+
+__all__ = ["customers", "conversations", "proposals", "customer_memory", "init", "repository", "crm"]

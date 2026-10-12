@@ -28,7 +28,7 @@
   <h1>HubSpot — Architecture Flowcharts</h1>
   <p class="sub">An Agentic AI-Powered Intelligent CRM for Conversational Customer Management and Automated Proposal Generation</p>
   <nav>
-    <a href="/">Home</a><a href="/web/">Website</a><a href="/docs">API Docs</a><a href="/health">Health</a>
+    <a href="/">Home</a><a href="/web/">Website</a><a href="/web/platform/">Platform</a><a href="/docs">API Docs</a><a href="/health">Health</a>
   </nav>
 </header>
 <main>
@@ -130,7 +130,10 @@ flowchart TD
   ORCH --> A6[Follow-Up Agent]
   ORCH --> A7[Customer Intelligence Agent]
   ORCH --> A8[Next-Best-Action Agent]
-  A1 --> SVC[Services: NLP, RAG, catalog, memory, prediction]
+  ORCH --> A9[Assistant / RAG Agent]
+  ORCH --> A10[Voice / Whisper Agent]
+  ORCH --> A11[ML Agent]
+  A1 --> SVC[Services: nlp, llm, vectorstore, rag, proposal, ml, catalog, memory, crm]
   A2 --> SVC
   A3 --> SVC
   A4 --> SVC
@@ -311,22 +314,25 @@ flowchart TD
   KFK --> SPK[Apache Spark Big Data Engine]
   NLPP --> C360[Customer 360 Intelligence Engine]
   SPK --> C360
-  C360 --> ORCH[AI Agent Orchestrator]
+  C360 --> ORCH[AI Agent Orchestrator - CRM Manager]
   ORCH --> CONV[Conversation Agent]
   ORCH --> PROP[Proposal Agent]
   ORCH --> RECO[Recommendation Agent]
+  ORCH --> NBA[Next-Best-Action Agent]
+  ORCH --> VOICE[Voice / Whisper Agent]
+  ORCH --> MLA[ML Agent]
   CONV --> MEM[Customer Memory]
-  PROP --> PGEN[Proposal Generator]
-  RECO --> NACT[Next Action]
-  MEM --> RAG[RAG + Knowledge Layer]
+  PROP --> PGEN[Proposal Generator + PDF]
+  RECO --> NACT[Catalog Engine]
+  MEM --> RAG[RAG + Vector Store]
   PGEN --> RAG
-  NACT --> RAG
-  RAG --> PG[(PostgreSQL)]
-  RAG --> MG[(MongoDB)]
-  RAG --> VDB[(Vector DB)]
-  PG --> DASH[AI CRM Dashboard]
-  MG --> DASH
+  NACT --> MLM[Churn / Purchase Models]
+  MLM --> NBA
+  RAG --> PG[(SQLite / PostgreSQL)]
+  RAG --> VDB[(Vector Table / Vector DB)]
+  PG --> DASH[AI CRM Dashboard + Website]
   VDB --> DASH
+  DASH --> OBS[Telemetry + Audit]
   </div>
 </section>
 

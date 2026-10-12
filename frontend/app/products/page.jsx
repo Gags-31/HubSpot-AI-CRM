@@ -11,7 +11,7 @@ export default function Products() {
   const [err, setErr] = useState(null);
 
   useEffect(() => {
-    api.products().then(setProducts).catch((e) => setErr(String(e)));
+    api.products().then((d) => setProducts(d.products)).catch((e) => setErr(String(e)));
     try { setCart(JSON.parse(localStorage.getItem("hubspot_cart") || "[]")); } catch {}
   }, []);
 
@@ -39,13 +39,15 @@ export default function Products() {
       {fits.length > 0 && (
         <div className="card" style={{ marginTop: 12 }}>
           <h3>Within {budget}</h3>
-          {fits.map((p) => <p key={p.id}>{p.name} — ₹{fmt(p.unit_price)} / unit</p>)}
+          {fits.map((p) => <p key={p.id}>{p.name} — ₹{fmt(p.unit_price)} / unit · stock {p.stock}</p>)}
         </div>
       )}
       {rec && (
         <div className="card" style={{ marginTop: 12 }}>
           <h3>Recommendation engine</h3>
           <p>Primary suggestion: <b>{rec.primary_suggestion.name}</b> × {rec.quantity} = ₹{fmt(rec.estimated_total)}</p>
+          {rec.upsell && <p>Upsell: <b>{rec.upsell.name}</b></p>}
+          <p>Stock check: <span className={`badge ${rec.stock_check === "in_stock" ? "ok" : "warn"}`}>{rec.stock_check}</span></p>
         </div>
       )}
 

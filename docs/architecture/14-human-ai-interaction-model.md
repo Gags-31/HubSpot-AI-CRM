@@ -3,14 +3,14 @@
 **Code paths:** `frontend/app/chat/page.jsx`
 
 ## Purpose
-The human only communicates, presses a button, reviews and approves; the AI performs every CRM operation.
+The human only communicates, presses a button, reviews and approves. The AI performs recording, transcription, extraction, memory, prediction, proposal generation, follow-up preparation and CRM updates.
 
 ## Flowchart
 ```mermaid
 flowchart LR
-  H1[Open app] --> H2[Talk] --> H3[Press button] --> H4[Review] --> H5[Approve / Send]
-  H4 --> AI[AI records, extracts, remembers, predicts, generates, recommends]
+  H1[Open app] --> H2[Talk] --> H3[Press button] --> H4[Review AI output] --> H5[Approve / Send]
+  H4 --> AI[AI: record, transcribe, extract, remember, predict, generate, recommend, follow up]
 ```
 
-## Source
-See `frontend/app/chat/page.jsx` in this repository.
+## Notes
+Every module runs with zero external services (SQLite + deterministic fallbacks) and upgrades automatically when PostgreSQL/Mongo/Kafka/Spark/Whisper/LLM keys are provided.

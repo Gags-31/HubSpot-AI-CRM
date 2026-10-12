@@ -1,17 +1,31 @@
-"""Predictive customer intelligence (heuristic stand-in for ML models)."""
+"""Predictive customer intelligence (ML-backed, heuristic fallback inside ml)."""
 import hashlib
 
+from app.services import crm, ml
 
-def predict(customer_id: str, conversations: int, avg_purchase: float, sentiment: str) -> dict:
-    seed = int(hashlib.md5(customer_id.encode()).hexdigest(), 16)
-    purchase_prob = min(0.99, 0.4 + 0.03 * conversations + (0.3 if sentiment == "Positive" else -0.1 if sentiment == "Negative" else 0.0))
-    churn_risk = max(0.01, 0.5 - 0.02 * conversations + (0.3 if sentiment == "Negative" else -0.05))
-    acceptance = 0.5 + 0.02 * conversations + (0.15 if sentiment == "Positive" else -0.15 if sentiment == "Negative" else 0)
+
+def _recommendation(features: dict) -> str:
+    req = features.get("current_requirement") or {}
+    if not features.get("total_orders"):
+        timing = req.get("delivery") or "timing"
+        return f"Follow up regarding delivery ({timing}) and payment terms."
+    return "Offer an upgrade / AMC renewal while engagement is high."
+
+
+def predict(customer_id: str) -> dict:
+    features = crm.customer_360(customer_id)
+    row = next((r for r in crm.feature_rows() if r["customer_id"] == customer_id), {})
+    out = ml.predict({**row, "conversations": features["total_conversations"],
+                      "orders": features["total_orders"], "spend": features["total_spend"]})
+    stable = int(hashlib.md5(customer_id.encode()).hexdigest()[:6], 16) % 100
     return {
-        "purchase_probability": round(purchase_prob, 2),
-        "proposal_acceptance": round(min(0.99, max(0.01, acceptance)), 2),
-        "churn_risk": round(churn_risk, 2),
-        "clv_estimate": round(avg_purchase * (1 + conversations * 0.1), 2),
-        "engagement": "High" if conversations >= 10 else "Medium" if conversations >= 4 else "Low",
-        "recommendation": "Follow up regarding pending requirements.",
+        "customer_id": customer_id,
+        "purchase_probability": out["purchase_probability"],
+        "churn_risk": out["churn_risk"],
+        "clv_estimate": out["clv_estimate"],
+        "engagement": out["engagement"],
+        "proposal_acceptance": round(min(0.99, out["purchase_probability"] * 0.95 + 0.05), 3),
+        "lead_conversion_probability": round(min(0.99, out["purchase_probability"] + stable / 500), 3),
+        "engine": out["engine"],
+        "recommendation": _recommendation(features),
     }

@@ -1,125 +1,126 @@
 "use client";
-import { useEffect, useState } from "react";
-import { api } from "../../lib/api";
+import { useEffect, useRef, useState } from "react";
+import { api, wsUrl } from "../../lib/api";
 
-const DEALER = "I need 50 units, budget around Rs 2 lakh. Delivery needed before the 20th.";
+const SAMPLE = "I need 120 control units, budget Rs 9 lakh, delivery before the 15th. This is urgent.";
 
 export default function Chat() {
-  const [customerId, setCustomerId] = useState("Consumer_001");
-  const [messages, setMessages] = useState([]);
+  const [customerId, setCustomerId] = useState("Consumer_DEMO01");
+  const [customers, setCustomers] = useState([]);
   const [input, setInput] = useState("");
-  const [entities, setEntities] = useState(null);
+  const [log, setLog] = useState([]);
+  const [live, setLive] = useState(null);
   const [proposal, setProposal] = useState(null);
-  const [agentOut, setAgentOut] = useState(null);
-  const [status, setStatus] = useState("idle");
+  const [missing, setMissing] = useState([]);
+  const [connected, setConnected] = useState(false);
+  const [answers, setAnswers] = useState({});
+  const ws = useRef(null);
+  const buffer = useRef([]);
 
   useEffect(() => { api.customers().then(setCustomers).catch(() => {}); }, []);
-  const [customers, setCustomers] = useState([]);
 
-  const transcript = messages.join(" ");
+  function connect(id) {
+    if (ws.current) ws.current.close();
+    const socket = new WebSocket(wsUrl(id));
+    ws.current = socket;
+    socket.onopen = () => setConnected(true);
+    socket.onclose = () => setConnected(false);
+    socket.onmessage = (e) => {
+      const msg = JSON.parse(e.data);
+      if (msg.event === "transcript") { buffer.current.push(msg.text); setLive((p) => ({ ...p, transcript: msg.text, role: msg.role })); }
+      if (msg.event === "analysis") setLive((p) => ({ ...p, analysis: msg }));
+      if (msg.event === "proposal") { setProposal(msg); setMissing(msg.missing.filter((m) => !m.present)); }
+      if (msg.event === "closed") setLog((l) => [...l, { text: "Conversation closed", role: "ai" }]);
+    };
+  }
 
-  async function send(text) {
+  function send(text) {
     const t = (text ?? input).trim();
-    if (!t) return;
-    const next = [...messages, t];
-    setMessages(next);
+    if (!t || !ws.current) return;
+    ws.current.send(JSON.stringify({ type: "message", role: "consumer", text: t }));
+    setLog((l) => [...l, { text: t, role: "consumer" }]);
     setInput("");
-    setStatus("listening…");
-    const r = await api.conversation(customerId, next);
-    setEntities(r.entities);
-    setStatus(`sentiment: ${r.sentiment} · intent: ${r.entities.intent} · priority: ${r.entities.priority}`);
   }
 
-  async function genProposal() {
-    setStatus("generating proposal…");
-    const r = await api.generateProposal(customerId, transcript ? [transcript] : [DEALER]);
-    setProposal(r);
-    setStatus("proposal generated");
-  }
+  const analyseAll = () => ws.current?.send(JSON.stringify({ type: "analyse" }));
+  const propose = () => ws.current?.send(JSON.stringify({ type: "propose" }));
+  const closeConv = () => ws.current?.send(JSON.stringify({ type: "close" }));
 
-  async function ask(question) {
-    const r = await api.ask(question || "What did this customer ask for last month?");
-    setAgentOut(r);
-  }
-
-  async function runAgent(agent) {
-    const r = await api.runAgent({
-      agent, customer_id: customerId, messages: [transcript || DEALER],
-      conversations: 14, avg_purchase: 75000, sentiment: entities?.intent === "Complaint" ? "Negative" : "Positive",
-      intent: entities?.intent || "Purchase", days: 6, proposal_pending: true, name: "Consumer",
-    });
-    setAgentOut(r);
+  async function fill(field) {
+    const value = answers[field];
+    if (!value) return;
+    const r = await api.answerMissing(customerId, field, value);
+    setProposal({ ...proposal, body: r.body, completeness: r.completeness, version: r.version });
+    setMissing(r.missing.filter((m) => !m.present));
   }
 
   return (
     <>
-      <h1>Conversational CRM</h1>
-      <p>Start Conversation → talk → press a button → review AI output → approve/send.</p>
+      <h1>Live Conversation (WebSocket)</h1>
+      <p>Every turn is recorded, transcribed and understood in real time by the AI agents.</p>
 
       <div className="card" style={{ marginTop: 12 }}>
         <div className="row">
-          <label style={{ fontSize: 13 }}>Consumer</label>
-          <select value={customerId} onChange={(e) => setCustomerId(e.target.value)} style={{ maxWidth: 240 }}>
-            {customers.length === 0 && <option>Consumer_001</option>}
+          <select value={customerId} onChange={(e) => { setCustomerId(e.target.value); connect(e.target.value); }}
+            style={{ maxWidth: 240 }}>
+            {customers.length === 0 && <option>Consumer_DEMO01</option>}
             {customers.map((c) => <option key={c.id}>{c.id}</option>)}
           </select>
-          <span className="badge">{status}</span>
+          <button onClick={() => connect(customerId)}>Connect</button>
+          <span className={`badge ${connected ? "ok" : "warn"}`}>{connected ? "connected" : "offline"}</span>
+          <button className="ghost" onClick={analyseAll}>Full analysis</button>
+          <button className="ghost" onClick={propose}>Generate proposal</button>
+          <button className="ghost" onClick={closeConv}>End conversation</button>
         </div>
       </div>
 
       <div className="grid cols-2" style={{ marginTop: 14 }}>
         <div className="card">
-          <h3>Conversation</h3>
+          <h3>Transcript</h3>
           <div className="chat">
-            {messages.map((m, i) => <div key={i} className="msg consumer">{m}</div>)}
-            {messages.length === 0 && <div className="msg ai">AI: Record the conversation and I will extract the requirement.</div>}
+            {log.map((m, i) => <div key={i} className={`msg ${m.role === "consumer" ? "consumer" : "ai"}`}>{m.text}</div>)}
+            {live?.analysis && <div className="msg dealer">AI: {live.analysis.sentiment} · {live.analysis.intent?.label} · {live.analysis.topics.join(", ") || "no topics"}</div>}
+            {log.length === 0 && !live && <div className="msg ai">Connect and start talking.</div>}
           </div>
           <div className="row" style={{ marginTop: 12 }}>
-            <input value={input} placeholder="Type or paste a voice transcript…" onChange={(e) => setInput(e.target.value)}
+            <input value={input} placeholder="Say something…" onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && send()} />
-            <button onClick={() => send()}>Send</button>
-            <button className="ghost" onClick={() => send(DEALER)}>Sample message</button>
+            <button onClick={() => send()} disabled={!connected}>Send</button>
+            <button className="ghost" onClick={() => send(SAMPLE)}>Sample</button>
           </div>
         </div>
 
         <div className="card">
-          <h3>AI extracted requirement</h3>
-          {entities ? (
-            <table>
-              <tbody>
-                <tr><th>Quantity</th><td>{entities.quantity ?? "—"}</td></tr>
-                <tr><th>Budget</th><td>{entities.budget ?? "—"}</td></tr>
-                <tr><th>Delivery</th><td>{entities.delivery ?? "—"}</td></tr>
-                <tr><th>Intent</th><td>{entities.intent}</td></tr>
-                <tr><th>Priority</th><td>{entities.priority}</td></tr>
-              </tbody>
-            </table>
-          ) : <p>Send a message to populate requirements.</p>}
-
-          <h3 style={{ marginTop: 16 }}>Actions</h3>
-          <div className="row">
-            <button onClick={genProposal}>Generate Proposal</button>
-            <button className="ghost" onClick={() => runAgent("recommendation")}>Recommend Product</button>
-            <button className="ghost" onClick={() => runAgent("followup")}>Follow Up</button>
-            <button className="ghost" onClick={() => runAgent("intelligence")}>Predict Behaviour</button>
-            <button className="ghost" onClick={() => runAgent("next_action")}>Next Best Action</button>
-            <button className="ghost" onClick={() => ask()}>Ask AI</button>
-            <button className="ghost" onClick={() => setProposal(null)}>Approve / Send</button>
-          </div>
+          <h3>Extracted requirement</h3>
+          {live?.analysis ? (
+            <table><tbody>
+              <tr><th>Quantity</th><td>{live.analysis.entities.quantity ?? "—"}</td></tr>
+              <tr><th>Budget</th><td>{live.analysis.entities.budget ?? "—"}</td></tr>
+              <tr><th>Delivery</th><td>{live.analysis.entities.delivery ?? "—"}</td></tr>
+              <tr><th>Intent</th><td>{live.analysis.entities.intent}</td></tr>
+              <tr><th>Priority</th><td>{live.analysis.entities.priority}</td></tr>
+            </tbody></table>
+          ) : <p>Live entity extraction appears here as you talk.</p>}
 
           {proposal && (
             <>
-              <h3 style={{ marginTop: 16 }}>Proposal</h3>
-              <pre>{proposal.text}</pre>
+              <h3 style={{ marginTop: 16 }}>Proposal v{proposal.proposal_id?.slice(-4) || "1"}</h3>
+              <pre>{proposal.body}</pre>
               <div className="row">
-                {proposal.missing.filter((m) => !m.present).map((m) => (
-                  <span key={m.field} className="badge warn">missing: {m.field} → {m.question}</span>
+                {missing.map((m) => (
+                  <span key={m.field} className="row" style={{ gap: 4 }}>
+                    <input placeholder={m.field} value={answers[m.field] || ""} style={{ width: 130 }}
+                      onChange={(e) => setAnswers((a) => ({ ...a, [m.field]: e.target.value }))} />
+                    <button className="ghost" onClick={() => fill(m.field)}>answer</button>
+                  </span>
                 ))}
+              </div>
+              <div className="row" style={{ marginTop: 10 }}>
+                <a className="badge ok" href={`/proposals/${proposal.proposal_id}/pdf`} target="_blank">Download PDF</a>
+                <span className="badge">{proposal.engine}</span>
               </div>
             </>
           )}
-
-          {agentOut && <><h3 style={{ marginTop: 16 }}>Agent output</h3><pre>{JSON.stringify(agentOut, null, 2)}</pre></>}
         </div>
       </div>
     </>

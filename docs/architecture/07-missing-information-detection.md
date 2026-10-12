@@ -1,19 +1,21 @@
 # Intelligent Missing-Information Detection
 
-**Code paths:** `backend/app/services/proposal.py (missing_information)`
+**Code paths:** `backend/app/services/proposal.py (completeness, missing_information), backend/app/routers/proposals.py (ask-missing)`
 
 ## Purpose
-Before a proposal is finalised the AI detects absent fields and asks the dealer for them automatically.
+Before a proposal is finalised the system scores completeness and asks the dealer for every absent field, then re-renders the proposal at the next version.
 
 ## Flowchart
 ```mermaid
 flowchart TD
-  T[Terms] --> C{Missing field?}
-  C -- no --> OK[Emit proposal]
-  C -- yes --> Q[Auto-question]
-  Q --> U[Update]
+  T[Terms] --> C{Complete?}
+  C -- no --> MISS[Score + list missing fields]
+  MISS --> Q[Auto-generated questions]
+  Q --> A[Dealer answers]
+  A --> U[Update terms, version + 1]
   U --> C
+  C -- yes --> EMIT[Emit final proposal]
 ```
 
-## Source
-See `backend/app/services/proposal.py (missing_information)` in this repository.
+## Notes
+Every module runs with zero external services (SQLite + deterministic fallbacks) and upgrades automatically when PostgreSQL/Mongo/Kafka/Spark/Whisper/LLM keys are provided.

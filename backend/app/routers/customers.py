@@ -1,25 +1,20 @@
-import uuid
-
 from fastapi import APIRouter
 
-from app import db
-from app.models import Customer
+from app.services import crm
 
 router = APIRouter(prefix="/customers", tags=["customers"])
 
 
 @router.post("/")
 def create(name: str, contact: str | None = None):
-    c = Customer(id=f"Consumer_{uuid.uuid4().hex[:6]}", name=name, contact=contact)
-    db.customers[c.id] = c
-    return c
+    return crm.create_customer(name, contact)
 
 
 @router.get("/")
 def list_all():
-    return list(db.customers.values())
+    return crm.list_customers()
 
 
 @router.get("/{customer_id}")
 def get(customer_id: str):
-    return db.customers.get(customer_id) or {"error": "not found"}
+    return crm.customer_360(customer_id) or {"error": "not found"}

@@ -1,14 +1,14 @@
 # Multi-Agent AI Architecture
 
-**Code paths:** `backend/app/agents/agents.py`
+**Code paths:** `backend/app/agents/agents.py, backend/app/routers/ops.py`
 
 ## Purpose
-Eight specialised agents coordinated by the CRM Manager agent, each owning a domain of CRM work.
+Eleven specialised agents (consumer, conversation, NLP, proposal, recommendation, follow-up, customer intelligence, next-action, assistant/RAG, voice, ML) coordinated by the CRM Manager agent.
 
 ## Flowchart
 ```mermaid
 flowchart TD
-  O[CRM Manager] --> A1[Consumer]
+  O[CRM Manager orchestrator] --> A1[Consumer]
   O --> A2[Conversation]
   O --> A3[NLP Intelligence]
   O --> A4[Proposal]
@@ -16,9 +16,13 @@ flowchart TD
   O --> A6[Follow-Up]
   O --> A7[Customer Intelligence]
   O --> A8[Next Best Action]
-  A4 --> S[services]
-  A3 --> S
+  O --> A9[Assistant RAG]
+  O --> A10[Voice STT]
+  O --> A11[ML]
+  A4 --> S[services: crm, proposal, catalog]
+  A7 --> S
+  A9 --> S
 ```
 
-## Source
-See `backend/app/agents/agents.py` in this repository.
+## Notes
+Every module runs with zero external services (SQLite + deterministic fallbacks) and upgrades automatically when PostgreSQL/Mongo/Kafka/Spark/Whisper/LLM keys are provided.

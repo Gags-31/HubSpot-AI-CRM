@@ -1,20 +1,20 @@
 # RAG-Based AI CRM Assistant
 
-**Code paths:** `backend/app/services/rag.py, backend/app/routers/assistant.py`
+**Code paths:** `backend/app/services/vectorstore.py, backend/app/services/rag.py, backend/app/services/llm.py`
 
 ## Purpose
-Dealers ask questions in natural language; answers are grounded in structured records and retrieved context.
+Conversations are embedded into a persisted vector table. Dealer questions retrieve the top-k chunks by cosine similarity and are answered grounded in that context — with an LLM when configured.
 
 ## Flowchart
 ```mermaid
 flowchart LR
-  Q[Question] --> DB[Structured search]
-  Q --> VS[Vector search]
-  DB --> LLM[Reasoning]
-  VS --> LLM
-  M[Memory] --> LLM
-  LLM --> A[Grounded answer + sources]
+  Q[Dealer question] --> E[Embed query]
+  E --> VS[(vectors table cosine search)]
+  VS --> CTX[Top-k context]
+  CTX --> LLM{LLM?}
+  LLM -- yes --> ANS[Grounded LLM answer]
+  LLM -- no --> ANS2[Retrieval answer + sources]
 ```
 
-## Source
-See `backend/app/services/rag.py, backend/app/routers/assistant.py` in this repository.
+## Notes
+Every module runs with zero external services (SQLite + deterministic fallbacks) and upgrades automatically when PostgreSQL/Mongo/Kafka/Spark/Whisper/LLM keys are provided.

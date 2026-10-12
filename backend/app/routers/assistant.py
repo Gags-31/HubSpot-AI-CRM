@@ -6,5 +6,5 @@ router = APIRouter(prefix="/assistant", tags=["assistant"])
 
 
 @router.post("/ask")
-def ask(query: str):
-    return rag.answer(query)
+def ask(query: str, customer_id: str | None = None):
+    return rag.answer(query, customer_id)
