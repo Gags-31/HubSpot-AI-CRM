@@ -1,76 +1,125 @@
 "use client";
 import { useEffect, useState } from "react";
 import { api, fmt } from "../../lib/api";
+import { Empty, KV, Skeleton, Toasts, useToasts } from "../../components/ui";
+
+const STATUSES = ["confirmed", "packed", "dispatched", "delivered"];
 
 export default function Orders() {
   const [cart, setCart] = useState([]);
   const [orders, setOrders] = useState([]);
   const [products, setProducts] = useState([]);
-  const [customerId, setCustomerId] = useState("Consumer_001");
-  const [last, setLast] = useState(null);
   const [customers, setCustomers] = useState([]);
+  const [customerId, setCustomerId] = useState("Consumer_DEMO01");
+  const [last, setLast] = useState(null);
+  const { items, push } = useToasts();
 
   useEffect(() => {
     setCart(JSON.parse(localStorage.getItem("hubspot_cart") || "[]"));
-    api.products().then(setProducts);
-    api.customers().then(setCustomers);
-    refresh();
+    api.products().then((d) => setProducts(d.products)).catch(() => {});
+    api.customers().then(setCustomers).catch(() => {});
+    api.orders().then(setOrders).catch(() => {});
   }, []);
 
-  function refresh() { api.orders().then(setOrders).catch(() => {}); }
+  const detail = (id) => products.find((p) => p.id === id);
+  const estimate = cart.reduce((s, c) => s + (detail(c.product_id)?.unit_price ?? 0) * c.quantity, 0);
 
   async function place() {
     if (!cart.length) return;
     const o = await api.createOrder(customerId, cart);
     setLast(o);
-    setCart([]); localStorage.removeItem("hubspot_cart");
-    refresh();
+    setCart([]);
+    localStorage.removeItem("hubspot_cart");
+    const fresh = await api.orders();
+    setOrders(fresh);
+    push(`Order ${o.id} confirmed`, "ok");
   }
 
-  const detail = (id) => products.find((p) => p.id === id);
+  async function advance(id, current) {
+    const next = STATUSES[Math.min(STATUSES.length - 1, STATUSES.indexOf(current) + 1)];
+    await fetch(`/orders/${id}/status?status=${next}`, { method: "POST" });
+    setOrders(await api.orders());
+    push(`${id} → ${next}`, "ok");
+  }
 
   return (
     <>
-      <h1>Orders</h1>
-      <p>Anything you order is written into the consumer's digital workspace and Customer 360° view.</p>
-
-      <div className="card" style={{ marginTop: 12 }}>
-        <h3>Cart</h3>
-        <div className="row">
-          <select value={customerId} onChange={(e) => setCustomerId(e.target.value)} style={{ maxWidth: 220 }}>
-            {customers.length === 0 && <option>Consumer_001</option>}
-            {customers.map((c) => <option key={c.id}>{c.id}</option>)}
-          </select>
-          <button onClick={place} disabled={!cart.length}>Place order</button>
-          <a className="badge" href="/web/products/">Add products</a>
+      <Toasts items={items} />
+      <div className="grid g2" style={{ gridTemplateColumns: "1.1fr 1fr" }}>
+        <div className="card">
+          <div className="card-title">
+            <div><h3>Cart</h3><p>Items collected from the catalog</p></div>
+            <span className="badge brand">{cart.length} item(s)</span>
+          </div>
+          {cart.length === 0 && <Empty>Cart is empty — <a href="/web/products/">add products</a>.</Empty>}
+          {cart.map((c) => (
+            <div className="kv" key={c.product_id}>
+              <span>{detail(c.product_id)?.name ?? c.product_id} <span className="badge">×{c.quantity}</span></span>
+              <b>₹{fmt((detail(c.product_id)?.unit_price ?? 0) * c.quantity)}</b>
+            </div>
+          ))}
+          <div className="row" style={{ marginTop: 14 }}>
+            <div style={{ minWidth: 220 }}>
+              <select value={customerId} onChange={(e) => setCustomerId(e.target.value)}>
+                {customers.length === 0 && <option>Consumer_DEMO01</option>}
+                {customers.map((c) => <option key={c.id}>{c.id}</option>)}
+              </select>
+            </div>
+            <button className="btn" onClick={place} disabled={!cart.length}>Place order</button>
+          </div>
         </div>
-        {cart.length === 0 && <p>Cart is empty — add items from the <a href="/web/products/">products page</a>.</p>}
-        {cart.map((c) => <p key={c.product_id}>{detail(c.product_id)?.name ?? c.product_id} × {c.quantity}</p>)}
+
+        <div className="card">
+          <div className="card-title"><div><h3>Order summary</h3><p>GST is computed automatically</p></div></div>
+          {last ? (
+            <>
+              <div className="row" style={{ justifyContent: "space-between" }}>
+                <b className="mono">{last.id}</b><span className="badge ok">{last.status}</span>
+              </div>
+              <div style={{ marginTop: 10 }}>
+                <KV label="Subtotal" value={`₹${fmt(last.subtotal)}`} />
+                <KV label="GST (18%)" value={`₹${fmt(last.tax)}`} />
+                <KV label="Grand total" value={`₹${fmt(last.grand_total)}`} />
+              </div>
+              <table style={{ marginTop: 10 }}>
+                <thead><tr><th>Item</th><th>Qty</th><th>Amount</th></tr></thead>
+                <tbody>{last.items.map((i) => (
+                  <tr key={i.product_id}><td>{i.name}</td><td>{i.quantity}</td><td>₹{fmt(i.line_total)}</td></tr>
+                ))}</tbody>
+              </table>
+            </>
+          ) : cart.length === 0 ? <Skeleton rows={4} /> : (
+            <>
+              <KV label="Subtotal" value={`₹${fmt(estimate)}`} />
+              <KV label="GST (18%)" value={`₹${fmt(estimate * 0.18)}`} />
+              <KV label="Estimated total" value={`₹${fmt(estimate * 1.18)}`} />
+            </>
+          )}
+        </div>
       </div>
 
-      {last && (
-        <div className="card" style={{ marginTop: 12 }}>
-          <h3>Order {last.id} confirmed</h3>
+      <div className="section-title">Order history ({orders.length})</div>
+      <div className="card">
+        {orders.length === 0 ? <Skeleton rows={3} /> : (
           <table>
+            <thead><tr><th>Order</th><th>Customer</th><th>Items</th><th>Total</th><th>Status</th><th /></tr></thead>
             <tbody>
-              {last.items.map((i) => <tr key={i.product_id}><td>{i.name}</td><td>×{i.quantity}</td><td>₹{fmt(i.line_total)}</td></tr>)}
-              <tr><th>Subtotal</th><td></td><td>₹{fmt(last.subtotal)}</td></tr>
-              <tr><th>GST (18%)</th><td></td><td>₹{fmt(last.tax)}</td></tr>
-              <tr><th>Grand total</th><td></td><td>₹{fmt(last.grand_total)}</td></tr>
+              {orders.map((o) => (
+                <tr key={o.id}>
+                  <td className="mono">{o.id}</td>
+                  <td>{o.customer_id}</td>
+                  <td style={{ color: "var(--text-dim)" }}>{o.items.map((i) => `${i.name} ×${i.quantity}`).join(", ")}</td>
+                  <td>₹{fmt(o.grand_total)}</td>
+                  <td><span className={`badge ${o.status === "delivered" ? "ok" : "brand"}`}>{o.status}</span></td>
+                  <td>
+                    {o.status !== "delivered" &&
+                      <button className="btn ghost tiny" onClick={() => advance(o.id, o.status)}>advance</button>}
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
-        </div>
-      )}
-
-      <h2>Order history</h2>
-      <div className="card">
-        {orders.length === 0 && <p>No orders yet.</p>}
-        {orders.map((o) => (
-          <div key={o.id} style={{ borderBottom: "1px solid #1e293b", padding: "8px 0" }}>
-            <b>{o.id}</b> · {o.customer_id} · <span className="badge ok">{o.status}</span> · ₹{fmt(o.grand_total)}
-            <p style={{ margin: "4px 0 0" }}>{o.items.map((i) => `${i.name} ×${i.quantity}`).join(", ")}</p>
-          </div>
-        ))}
+        )}
       </div>
     </>
   );

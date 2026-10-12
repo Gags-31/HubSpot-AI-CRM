@@ -1,126 +1,177 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { api, wsUrl } from "../../lib/api";
+import { Gauge } from "../../components/charts";
+import { Skeleton, Toasts, useToasts } from "../../components/ui";
 
-const SAMPLE = "I need 120 control units, budget Rs 9 lakh, delivery before the 15th. This is urgent.";
+const SAMPLES = [
+  "I need 120 control units, budget Rs 9 lakh, delivery before the 15th. This is urgent.",
+  "The last delivery was delayed and it stopped our line. Very poor service.",
+  "What is the price of 40 sensor kits with a 3 year warranty?",
+];
 
 export default function Chat() {
-  const [customerId, setCustomerId] = useState("Consumer_DEMO01");
   const [customers, setCustomers] = useState([]);
+  const [customerId, setCustomerId] = useState("Consumer_DEMO01");
   const [input, setInput] = useState("");
-  const [log, setLog] = useState([]);
-  const [live, setLive] = useState(null);
+  const [turns, setTurns] = useState([]);
+  const [entities, setEntities] = useState(null);
   const [proposal, setProposal] = useState(null);
-  const [missing, setMissing] = useState([]);
   const [connected, setConnected] = useState(false);
   const [answers, setAnswers] = useState({});
+  const [phase, setPhase] = useState("idle");
   const ws = useRef(null);
-  const buffer = useRef([]);
+  const bottom = useRef(null);
+  const { items, push } = useToasts();
 
   useEffect(() => { api.customers().then(setCustomers).catch(() => {}); }, []);
+  useEffect(() => { bottom.current?.scrollIntoView({ behavior: "smooth" }); }, [turns]);
 
   function connect(id) {
     if (ws.current) ws.current.close();
     const socket = new WebSocket(wsUrl(id));
     ws.current = socket;
-    socket.onopen = () => setConnected(true);
+    socket.onopen = () => { setConnected(true); push(`Live channel open for ${id}`, "ok"); };
     socket.onclose = () => setConnected(false);
+    socket.onerror = () => push("WebSocket error", "warn");
     socket.onmessage = (e) => {
-      const msg = JSON.parse(e.data);
-      if (msg.event === "transcript") { buffer.current.push(msg.text); setLive((p) => ({ ...p, transcript: msg.text, role: msg.role })); }
-      if (msg.event === "analysis") setLive((p) => ({ ...p, analysis: msg }));
-      if (msg.event === "proposal") { setProposal(msg); setMissing(msg.missing.filter((m) => !m.present)); }
-      if (msg.event === "closed") setLog((l) => [...l, { text: "Conversation closed", role: "ai" }]);
+      const m = JSON.parse(e.data);
+      if (m.event === "transcript") setPhase("understanding…");
+      if (m.event === "analysis") { setEntities(m.entities); setPhase("idle"); }
+      if (m.event === "proposal") { setProposal(m); push(`Proposal ${m.proposal_id} ready`, "ok"); }
     };
   }
 
   function send(text) {
     const t = (text ?? input).trim();
-    if (!t || !ws.current) return;
+    if (!t) return;
+    if (!ws.current || ws.current.readyState !== 1) return push("Connect to the live channel first", "warn");
     ws.current.send(JSON.stringify({ type: "message", role: "consumer", text: t }));
-    setLog((l) => [...l, { text: t, role: "consumer" }]);
+    setTurns((v) => [...v, { text: t, role: "consumer" }]);
     setInput("");
   }
-
-  const analyseAll = () => ws.current?.send(JSON.stringify({ type: "analyse" }));
-  const propose = () => ws.current?.send(JSON.stringify({ type: "propose" }));
-  const closeConv = () => ws.current?.send(JSON.stringify({ type: "close" }));
 
   async function fill(field) {
     const value = answers[field];
     if (!value) return;
     const r = await api.answerMissing(customerId, field, value);
-    setProposal({ ...proposal, body: r.body, completeness: r.completeness, version: r.version });
-    setMissing(r.missing.filter((m) => !m.present));
+    setProposal((p) => ({ ...p, body: r.body, completeness: r.completeness, missing: r.missing }));
+    push(`${field} captured — proposal re-rendered`, "ok");
   }
+
+  const missing = (proposal?.missing ?? []).filter((m) => !m.present);
+  const completeness = proposal?.completeness?.score ?? 0;
 
   return (
     <>
-      <h1>Live Conversation (WebSocket)</h1>
-      <p>Every turn is recorded, transcribed and understood in real time by the AI agents.</p>
-
-      <div className="card" style={{ marginTop: 12 }}>
+      <Toasts items={items} />
+      <div className="card">
         <div className="row">
-          <select value={customerId} onChange={(e) => { setCustomerId(e.target.value); connect(e.target.value); }}
-            style={{ maxWidth: 240 }}>
-            {customers.length === 0 && <option>Consumer_DEMO01</option>}
-            {customers.map((c) => <option key={c.id}>{c.id}</option>)}
-          </select>
-          <button onClick={() => connect(customerId)}>Connect</button>
-          <span className={`badge ${connected ? "ok" : "warn"}`}>{connected ? "connected" : "offline"}</span>
-          <button className="ghost" onClick={analyseAll}>Full analysis</button>
-          <button className="ghost" onClick={propose}>Generate proposal</button>
-          <button className="ghost" onClick={closeConv}>End conversation</button>
+          <div style={{ minWidth: 230 }}>
+            <select value={customerId} onChange={(e) => { setCustomerId(e.target.value); connect(e.target.value); }}>
+              {customers.length === 0 && <option>Consumer_DEMO01</option>}
+              {customers.map((c) => <option key={c.id}>{c.id}</option>)}
+            </select>
+          </div>
+          <button className="btn" onClick={() => connect(customerId)}>Connect live channel</button>
+          <span className={`badge ${connected ? "ok" : "warn"}`}>{connected ? "streaming" : "not connected"}</span>
+          <span className="spacer" />
+          {phase !== "idle" && <span className="badge brand">{phase}</span>}
+          <button className="btn ghost tiny" onClick={() => ws.current?.send(JSON.stringify({ type: "propose" }))}>Generate proposal</button>
+          <button className="btn ghost tiny" onClick={() => ws.current?.send(JSON.stringify({ type: "close" }))}>End conversation</button>
         </div>
       </div>
 
-      <div className="grid cols-2" style={{ marginTop: 14 }}>
+      <div className="grid g2" style={{ marginTop: 16, gridTemplateColumns: "1.25fr 1fr" }}>
         <div className="card">
-          <h3>Transcript</h3>
-          <div className="chat">
-            {log.map((m, i) => <div key={i} className={`msg ${m.role === "consumer" ? "consumer" : "ai"}`}>{m.text}</div>)}
-            {live?.analysis && <div className="msg dealer">AI: {live.analysis.sentiment} · {live.analysis.intent?.label} · {live.analysis.topics.join(", ") || "no topics"}</div>}
-            {log.length === 0 && !live && <div className="msg ai">Connect and start talking.</div>}
+          <div className="card-title">
+            <div><h3>Conversation</h3><p>Each turn is recorded, transcribed and analysed in real time</p></div>
           </div>
-          <div className="row" style={{ marginTop: 12 }}>
-            <input value={input} placeholder="Say something…" onChange={(e) => setInput(e.target.value)}
+          <div className="chat">
+            {turns.map((t, i) => (
+              <div key={i} className={`msg ${t.role === "consumer" ? "consumer" : "dealer"}`}>
+                <span className="who">{t.role}</span>{t.text}
+              </div>
+            ))}
+            {entities && (
+              <div className="msg ai">
+                AI understood → {entities.intent} · {entities.priority} priority
+                {entities.quantity ? ` · ${entities.quantity}` : ""}
+                {entities.budget ? ` · ${entities.budget}` : ""}
+                {entities.topics?.length ? ` · topics: ${entities.topics.join(", ")}` : ""}
+              </div>
+            )}
+            {turns.length === 0 && <div className="empty">Connect and start talking — the AI does the rest.</div>}
+            <div ref={bottom} />
+          </div>
+          <div className="composer">
+            <input value={input} placeholder="Type the customer's message…" onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && send()} />
-            <button onClick={() => send()} disabled={!connected}>Send</button>
-            <button className="ghost" onClick={() => send(SAMPLE)}>Sample</button>
+            <button className="btn" onClick={() => send()} disabled={!connected}>Send</button>
+          </div>
+          <div className="row tight" style={{ marginTop: 10 }}>
+            {SAMPLES.map((s, i) => (
+              <button key={i} className="pill" onClick={() => send(s)}>{s.slice(0, 38)}…</button>
+            ))}
           </div>
         </div>
 
-        <div className="card">
-          <h3>Extracted requirement</h3>
-          {live?.analysis ? (
-            <table><tbody>
-              <tr><th>Quantity</th><td>{live.analysis.entities.quantity ?? "—"}</td></tr>
-              <tr><th>Budget</th><td>{live.analysis.entities.budget ?? "—"}</td></tr>
-              <tr><th>Delivery</th><td>{live.analysis.entities.delivery ?? "—"}</td></tr>
-              <tr><th>Intent</th><td>{live.analysis.entities.intent}</td></tr>
-              <tr><th>Priority</th><td>{live.analysis.entities.priority}</td></tr>
-            </tbody></table>
-          ) : <p>Live entity extraction appears here as you talk.</p>}
+        <div className="list">
+          <div className="card">
+            <div className="card-title"><div><h3>Extracted requirement</h3><p>Written into the consumer workspace automatically</p></div></div>
+            {entities ? (
+              <>
+                <div className="kv"><span className="stat-label">Quantity</span><b>{entities.quantity ?? "—"}</b></div>
+                <div className="kv"><span className="stat-label">Budget</span><b>{entities.budget ?? "—"}</b></div>
+                <div className="kv"><span className="stat-label">Delivery</span><b>{entities.delivery ?? "—"}</b></div>
+                <div className="kv"><span className="stat-label">Intent</span><b>{entities.intent}</b></div>
+                <div className="kv"><span className="stat-label">Priority</span><b className={entities.priority === "High" ? "warn" : ""}>{entities.priority}</b></div>
+              </>
+            ) : <Skeleton rows={5} />}
+          </div>
 
-          {proposal && (
-            <>
-              <h3 style={{ marginTop: 16 }}>Proposal v{proposal.proposal_id?.slice(-4) || "1"}</h3>
-              <pre>{proposal.body}</pre>
-              <div className="row">
-                {missing.map((m) => (
-                  <span key={m.field} className="row" style={{ gap: 4 }}>
-                    <input placeholder={m.field} value={answers[m.field] || ""} style={{ width: 130 }}
-                      onChange={(e) => setAnswers((a) => ({ ...a, [m.field]: e.target.value }))} />
-                    <button className="ghost" onClick={() => fill(m.field)}>answer</button>
-                  </span>
-                ))}
-              </div>
-              <div className="row" style={{ marginTop: 10 }}>
-                <a className="badge ok" href={`/proposals/${proposal.proposal_id}/pdf`} target="_blank">Download PDF</a>
-                <span className="badge">{proposal.engine}</span>
-              </div>
-            </>
-          )}
+          <div className="card">
+            <div className="card-title">
+              <div><h3>Proposal</h3><p>Auto-generated with completeness check</p></div>
+              {proposal && <span className={`badge ${completeness === 1 ? "ok" : "warn"}`}>{Math.round(completeness * 100)}% complete</span>}
+            </div>
+            {proposal ? (
+              <>
+                <div style={{ marginBottom: 12 }}><Gauge value={completeness} label="completeness"
+                  tone={completeness === 1 ? "var(--ok)" : "var(--warn)"} /></div>
+                <pre style={{ maxHeight: 240 }}>{proposal.body}</pre>
+                {missing.length > 0 && (
+                  <div style={{ marginTop: 12 }}>
+                    <div className="stat-label" style={{ marginBottom: 8 }}>AI is asking the dealer</div>
+                    <div className="list">
+                      {missing.map((m) => (
+                        <div key={m.field} className="row" style={{ gap: 8 }}>
+                          <input placeholder={m.question ?? m.field} style={{ flex: 1 }}
+                            value={answers[m.field] ?? ""}
+                            onChange={(e) => setAnswers((a) => ({ ...a, [m.field]: e.target.value }))} />
+                          <button className="btn tiny" onClick={() => fill(m.field)}>Answer</button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                <div className="row" style={{ marginTop: 12 }}>
+                  <a className="btn ghost tiny" href={`/proposals/${proposal.proposal_id}/pdf`} target="_blank">Download PDF</a>
+                  <span className="badge">{proposal.engine}</span>
+                </div>
+              </>
+            ) : (
+              <>
+                <p style={{ color: "var(--text-dim)" }}>
+                  Ask the Proposal agent to build a proposal from this conversation — it fills in terms,
+                  flags what is missing and exports a PDF.
+                </p>
+                <button className="btn" onClick={() => ws.current?.send(JSON.stringify({ type: "propose" }))} disabled={!connected}>
+                  Generate proposal now
+                </button>
+              </>
+            )}
+          </div>
         </div>
       </div>
     </>

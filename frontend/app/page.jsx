@@ -1,58 +1,106 @@
 "use client";
 import { useEffect, useState } from "react";
 import { api, fmt } from "../lib/api";
+import { Bars, Donut, Progress } from "../components/charts";
+import { Skeleton, useToasts, Toasts } from "../components/ui";
 
 export default function Dashboard() {
-  const [health, setHealth] = useState(null);
-  const [customers, setCustomers] = useState([]);
-  const [products, setProducts] = useState([]);
-  const [orders, setOrders] = useState([]);
+  const [data, setData] = useState(null);
   const [portfolio, setPortfolio] = useState(null);
-  const [err, setErr] = useState(null);
+  const { items, push } = useToasts();
 
   useEffect(() => {
     (async () => {
       try {
         const [h, c, p, o, pf] = await Promise.all([api.health(), api.customers(), api.products(), api.orders(), api.portfolio()]);
-        setHealth(h); setCustomers(c); setProducts(p.products); setOrders(o); setPortfolio(pf);
-      } catch (e) { setErr(String(e)); }
+        setData({ h, customers: c, products: p.products, orders: o });
+        setPortfolio(pf);
+      } catch (e) {
+        push(`Could not load dashboard: ${e.message}`, "warn");
+      }
     })();
   }, []);
 
-  const revenue = orders.reduce((s, o) => s + (o.grand_total || 0), 0);
+  const revenue = (data?.orders ?? []).reduce((s, o) => s + (o.grand_total || 0), 0);
+  const spendChart = (portfolio?.high_value ?? []).map((c) => ({ label: c.customer_id.replace("Consumer_", ""), value: c.total_spend }));
 
   return (
     <>
-      <h1>HubSpot Dashboard</h1>
-      <p>Conversation in, structured intelligence out. Version {health?.version ?? "—"} · {health?.agents ?? "—"} agents · DB: {health?.database}</p>
-      {err && <pre>Error: {err}</pre>}
-
-      <h2>Key metrics</h2>
-      <div className="grid cols-3">
-        <div className="card"><div className="kpi-label">Consumers</div><div className="stat">{customers.length}</div></div>
-        <div className="card"><div className="kpi-label">Conversations</div><div className="stat">{portfolio?.conversations ?? 0}</div></div>
-        <div className="card"><div className="kpi-label">Orders</div><div className="stat">{orders.length}</div></div>
-        <div className="card"><div className="kpi-label">Revenue (INR)</div><div className="stat">{fmt(revenue)}</div></div>
-        <div className="card"><div className="kpi-label">Catalog items</div><div className="stat">{products.length}</div></div>
-        <div className="card"><div className="kpi-label">Negative sentiment</div><div className="stat">{portfolio?.negative_sentiment?.length ?? 0}</div></div>
-      </div>
-
-      <h2>Portfolio</h2>
-      <div className="card">
-        {(portfolio?.high_value ?? []).map((c) => (
-          <p key={c.customer_id}><b>{c.customer_id}</b> · {c.total_conversations} conversations · {c.total_orders} orders · ₹{fmt(c.total_spend)}</p>
+      <Toasts items={items} />
+      <div className="grid g4">
+        {[
+          ["Consumers", data?.customers.length, "var(--accent)"],
+          ["Conversations", portfolio?.conversations, "var(--brand)"],
+          ["Orders", data?.orders.length, "var(--violet)"],
+          ["Revenue (₹)", revenue ? fmt(revenue) : 0, "var(--ok)"],
+        ].map(([label, value, color]) => (
+          <div className="card" key={label}>
+            <div className="stat-label">{label}</div>
+            <div className="stat" style={{ color }}>{value ?? "—"}</div>
+            <div className="stat-delta">{data ? "live from API" : "loading…"}</div>
+          </div>
         ))}
-        {!portfolio?.high_value?.length && <p>No data yet — open the Live Chat page and start a conversation.</p>}
       </div>
 
-      <h2>Modules</h2>
-      <div className="grid cols-2">
-        <div className="card"><h3>Conversational CRM</h3><p>Real-time WebSocket chat with live entity extraction. <a href="/web/chat/">Open live chat</a>.</p></div>
-        <div className="card"><h3>Proposal Engine</h3><p>Terms extracted from conversation, missing fields auto-asked, versioning and PDF export. <a href="/web/proposals/">Proposals</a>.</p></div>
-        <div className="card"><h3>Commerce</h3><p>Catalog with budget-fit and recommendations, cart and order lifecycle. <a href="/web/products/">Products</a> · <a href="/web/orders/">Orders</a>.</p></div>
-        <div className="card"><h3>Intelligence</h3><p>Customer 360°, memory, ML predictions and next-best-action. <a href="/web/consumers/">Customer 360</a>.</p></div>
-        <div className="card"><h3>Platform</h3><p>Agents, telemetry, model training, background jobs, Kafka/Spark hooks, audit trail. <a href="/web/platform/">Platform</a>.</p></div>
-        <div className="card"><h3>Architecture</h3><p>Per-module flowcharts render live at <a href="/architecture.html">/architecture.html</a>.</p></div>
+      <div className="section-title">Dealer portfolio</div>
+      <div className="grid g2">
+        <div className="card">
+          <div className="card-title">
+            <div><h3>Revenue by customer</h3><p>Total order value per consumer</p></div>
+            <span className="badge brand">{portfolio?.orders ?? 0} orders</span>
+          </div>
+          {spendChart.length ? (
+            <Bars data={spendChart} format={(v) => `₹${fmt(v / 1000)}k`} />
+          ) : <Skeleton rows={3} />}
+        </div>
+
+        <div className="card">
+          <div className="card-title">
+            <div><h3>Sentiment health</h3><p>Where the dealer needs attention</p></div>
+          </div>
+          {portfolio ? (
+            <Donut
+              segments={[
+                { label: "Healthy", value: Math.max(0, portfolio.customers - portfolio.negative_sentiment.length), color: "var(--ok)" },
+                { label: "Negative", value: portfolio.negative_sentiment.length, color: "var(--danger)" },
+              ]}
+              center={portfolio.customers}
+              centerLabel="customers"
+            />
+          ) : <Skeleton rows={2} />}
+        </div>
+      </div>
+
+      <div className="section-title">System</div>
+      <div className="grid g3">
+        <div className="card">
+          <h3>System health</h3>
+          <div className="kv"><span className="stat-label">Version</span><b>{data?.h.version ?? "—"}</b></div>
+          <div className="kv"><span className="stat-label">Agents</span><b>{data?.h.agents ?? "—"}</b></div>
+          <div className="kv"><span className="stat-label">Database</span><b>{data?.h.database ?? "—"}</b></div>
+          <div className="kv"><span className="stat-label">LLM</span><b>{data?.h.llm_configured ? "connected" : "rule-based fallback"}</b></div>
+        </div>
+
+        <div className="card">
+          <h3>Attention required</h3>
+          {(portfolio?.negative_sentiment ?? []).length === 0 && <p style={{ color: "var(--text-dim)" }}>No customers flagged as negative.</p>}
+          {(portfolio?.negative_sentiment ?? []).map((id) => (
+            <div key={id} className="kv"><span className="badge danger">complaint risk</span><a href="/web/consumers/">{id}</a></div>
+          ))}
+          <div style={{ marginTop: 12 }}>
+            <div className="stat-label" style={{ marginBottom: 6 }}>Conversation coverage</div>
+            <Progress value={Math.min(100, (portfolio?.customers ? (portfolio.conversations / portfolio.customers) * 25 : 0))} />
+          </div>
+        </div>
+
+        <div className="card">
+          <h3>Quick actions</h3>
+          <div className="list" style={{ marginTop: 8 }}>
+            <a className="btn" href="/web/chat/">Start a conversation</a>
+            <a className="btn ghost" href="/web/proposals/">Generate a proposal</a>
+            <a className="btn ghost" href="/web/platform/">Train the ML model</a>
+          </div>
+        </div>
       </div>
     </>
   );
