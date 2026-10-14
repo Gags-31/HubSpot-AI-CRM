@@ -85,7 +85,7 @@ export default function Dashboard() {
           <h3>Attention required</h3>
           {(portfolio?.negative_sentiment ?? []).length === 0 && <p style={{ color: "var(--text-dim)" }}>No customers flagged as negative.</p>}
           {(portfolio?.negative_sentiment ?? []).map((id) => (
-            <div key={id} className="kv"><span className="badge danger">complaint risk</span><a href="/web/consumers/">{id}</a></div>
+            <div key={id} className="kv"><span className="badge danger">complaint risk</span><a href="/consumers/">{id}</a></div>
           ))}
           <div style={{ marginTop: 12 }}>
             <div className="stat-label" style={{ marginBottom: 6 }}>Conversation coverage</div>
@@ -96,9 +96,9 @@ export default function Dashboard() {
         <div className="card">
           <h3>Quick actions</h3>
           <div className="list" style={{ marginTop: 8 }}>
-            <a className="btn" href="/web/chat/">Start a conversation</a>
-            <a className="btn ghost" href="/web/proposals/">Generate a proposal</a>
-            <a className="btn ghost" href="/web/platform/">Train the ML model</a>
+            <a className="btn" href="/chat/">Start a conversation</a>
+            <a className="btn ghost" href="/proposals/">Generate a proposal</a>
+            <a className="btn ghost" href="/platform/">Train the ML model</a>
           </div>
         </div>
       </div>

@@ -14,12 +14,12 @@ import { useTheme } from "./ui";
 export function ShellWrapper({ children }) {
   const pathname = usePathname();
   const [t, toggle] = useTheme();
-  const current = pathname === "/" ? "/web/" : pathname;
+  const current = pathname === "/" ? "/" : pathname;
   const lines = [
-    { group: "Workspace", items: [["/web/", "Overview"], ["/web/chat/", "Conversations"]] },
-    { group: "Intelligence", items: [["/web/consumers/", "Customers"]] },
-    { group: "Commerce", items: [["/web/products/", "Catalog"], ["/web/orders/", "Orders"], ["/web/proposals/", "Proposals"]] },
-    { group: "Operations", items: [["/web/platform/", "Platform"]] },
+    { group: "Workspace", items: [["/", "Overview"], ["/chat/", "Conversations"]] },
+    { group: "Intelligence", items: [["/consumers/", "Customers"]] },
+    { group: "Commerce", items: [["/products/", "Catalog"], ["/orders/", "Orders"], ["/proposals/", "Proposals"]] },
+    { group: "Operations", items: [["/platform/", "Platform"]] },
   ];
   return (
     <div className="shell" data-theme={t}>
@@ -57,7 +57,7 @@ export function ShellWrapper({ children }) {
           <div><h1>{TITLE(current)}</h1><div className="sub">conversation in, structured intelligence out</div></div>
           <div className="row tight">
             <span className="badge ok"><i className="dot" style={{ background: "var(--ok)" }} /> API online</span>
-            <a className="btn ghost tiny" href="/web/chat/">Start conversation</a>
+            <a className="btn ghost tiny" href="/chat/">Start conversation</a>
             <button className="btn ghost tiny" onClick={toggle}>{t === "dark" ? "Light" : "Dark"} mode</button>
           </div>
         </div>
@@ -72,9 +72,9 @@ export function ShellWrapper({ children }) {
 
 function TITLE(current) {
   const map = {
-    "/web/": "Overview", "/web/chat/": "Conversations", "/web/consumers/": "Customer 360",
-    "/web/products/": "Catalog", "/web/orders/": "Orders", "/web/proposals/": "Proposals",
-    "/web/platform/": "Platform", "/architecture.html": "Architecture", "/docs": "API reference",
+    "/": "Overview", "/chat/": "Conversations", "/consumers/": "Customer 360",
+    "/products/": "Catalog", "/orders/": "Orders", "/proposals/": "Proposals",
+    "/platform/": "Platform", "/architecture.html": "Architecture", "/docs": "API reference",
   };
   return map[current] ?? "HubSpot";
 }

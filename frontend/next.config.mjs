@@ -2,7 +2,6 @@
 const nextConfig = {
   output: "export",
   trailingSlash: true,
-  basePath: "/web",
   images: { unoptimized: true },
 };
 

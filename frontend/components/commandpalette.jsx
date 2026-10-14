@@ -3,13 +3,13 @@ import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 
 const ITEMS = [
-  { group: "Navigate", label: "Dashboard", desc: "KPIs and portfolio", href: "/web/" },
-  { group: "Navigate", label: "Conversations", desc: "Live WebSocket chat", href: "/web/chat/" },
-  { group: "Navigate", label: "Customers 360°", desc: "Memory, prediction, NBA", href: "/web/consumers/" },
-  { group: "Navigate", label: "Catalog", desc: "Products and cart", href: "/web/products/" },
-  { group: "Navigate", label: "Orders", desc: "Order lifecycle", href: "/web/orders/" },
-  { group: "Navigate", label: "Proposals", desc: "Versioned + PDF", href: "/web/proposals/" },
-  { group: "Navigate", label: "Platform", desc: "Agents, ML, jobs", href: "/web/platform/" },
+  { group: "Navigate", label: "Dashboard", desc: "KPIs and portfolio", href: "/" },
+  { group: "Navigate", label: "Conversations", desc: "Live WebSocket chat", href: "/chat/" },
+  { group: "Navigate", label: "Customers 360°", desc: "Memory, prediction, NBA", href: "/consumers/" },
+  { group: "Navigate", label: "Catalog", desc: "Products and cart", href: "/products/" },
+  { group: "Navigate", label: "Orders", desc: "Order lifecycle", href: "/orders/" },
+  { group: "Navigate", label: "Proposals", desc: "Versioned + PDF", href: "/proposals/" },
+  { group: "Navigate", label: "Platform", desc: "Agents, ML, jobs", href: "/platform/" },
   { group: "Reference", label: "Architecture", desc: "16 module flowcharts", href: "/architecture.html" },
   { group: "Reference", label: "API docs", desc: "Swagger / OpenAPI", href: "/docs" },
 ];

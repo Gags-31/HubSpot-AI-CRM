@@ -1,6 +1,7 @@
-// API helper — the site is served by the same FastAPI origin, so relative paths work everywhere.
+// API helper — the site is served by the same FastAPI origin, so use relative paths.
+const API = "/api";
 async function req(path, options) {
-  const res = await fetch(path, { headers: { "Content-Type": "application/json" }, ...options });
+  const res = await fetch(`${API}${path}`, { headers: { "Content-Type": "application/json" }, ...options });
   if (!res.ok) throw new Error(`${res.status} ${await res.text()}`);
   return res.json();
 }
@@ -45,7 +46,7 @@ export const api = {
 
 export function wsUrl(customerId) {
   const proto = window.location.protocol === "https:" ? "wss" : "ws";
-  return `${proto}://${window.location.host}/ws/conversation/${customerId}`;
+  return `${proto}://${window.location.host}/api/ws/conversation/${customerId}`;
 }
 
 export const fmt = (n) => new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format(n ?? 0);

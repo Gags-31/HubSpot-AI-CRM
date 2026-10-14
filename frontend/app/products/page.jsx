@@ -118,7 +118,7 @@ export default function Products() {
           <div className="row">
             <b>Cart · {cart.length} item(s)</b>
             <span className="spacer" />
-            <a className="btn" href="/web/orders/">Review &amp; place order</a>
+            <a className="btn" href="/orders/">Review &amp; place order</a>
             <button className="btn ghost tiny" onClick={() => { setCart([]); localStorage.removeItem("hubspot_cart"); }}>clear</button>
           </div>
           <div className="stat-delta">{cart.map((c) => `${detail(c.product_id)?.name ?? c.product_id} ×${c.quantity}`).join(" · ")}</div>

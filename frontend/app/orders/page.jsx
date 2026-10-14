@@ -51,7 +51,7 @@ export default function Orders() {
             <div><h3>Cart</h3><p>Items collected from the catalog</p></div>
             <span className="badge brand">{cart.length} item(s)</span>
           </div>
-          {cart.length === 0 && <Empty>Cart is empty — <a href="/web/products/">add products</a>.</Empty>}
+          {cart.length === 0 && <Empty>Cart is empty — <a href="/products/">add products</a>.</Empty>}
           {cart.map((c) => (
             <div className="kv" key={c.product_id}>
               <span>{detail(c.product_id)?.name ?? c.product_id} <span className="badge">×{c.quantity}</span></span>
