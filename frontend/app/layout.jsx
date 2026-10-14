@@ -1,5 +1,5 @@
 import "./globals.css";
-import Shell from "../components/shell";
+import ShellWrapper from "../components/shell";
 
 export const metadata = {
   title: "HubSpot — Agentic AI CRM",
@@ -8,9 +8,9 @@ export const metadata = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body>
-        <Shell>{children}</Shell>
+        <ShellWrapper>{children}</ShellWrapper>
       </body>
     </html>
   );

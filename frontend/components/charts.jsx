@@ -1,81 +1,62 @@
 "use client";
+import { useEffect, useRef, useState } from "react";
 
-export function Bars({ data, max, format = (v) => v }) {
-  const top = max ?? Math.max(1, ...data.map((d) => d.value));
+export function Sparkline({ data, color = "var(--accent)", height = 36, width = 160 }) {
+  const max = Math.max(...data, 1);
+  const step = width / Math.max(data.length - 1, 1);
+  const pts = data.map((v, i) => `${(i * step).toFixed(1)},${(height - (v / max) * height).toFixed(1)}`).join(" ");
   return (
-    <div>
-      <div className="bars">
-        {data.map((d) => (
-          <div key={d.label} style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "flex-end" }}>
-            <div className="bar-value">{format(d.value)}</div>
-            <div className="bar" style={{ height: `${Math.max(4, (d.value / top) * 100)}%`, background: d.color }} />
-            <span style={{ display: "block", textAlign: "center", fontSize: 10.5, color: "var(--text-faint)", marginTop: 6 }}>
-              {d.label}
-            </span>
-          </div>
-        ))}
-      </div>
-    </div>
+    <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} className="spark">
+      <defs>
+        <linearGradient id="spk" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={color} stopOpacity="0.25" />
+          <stop offset="100%" stopColor={color} stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      <polygon points={`0,${height} ${pts} ${width},${height}`} fill="url(#spk)" />
+      <polyline points={pts} fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
   );
 }
 
-export function Gauge({ value, label, tone = "var(--accent)" }) {
-  const pct = Math.max(0, Math.min(100, Math.round(value * 100)));
-  const r = 54;
-  const c = 2 * Math.PI * r;
+export function AreaChart({ data, height = 160, pad = 24 }) {
+  const max = Math.max(...data.map((d) => d.value), 1);
+  const totalH = height;
+  const w = 100 / (data.length - 1 || 1);
+  const pts = data.map((d, i) => `${(i * w).toFixed(2)},${(totalH - (d.value / max) * (totalH - pad) - pad / 2).toFixed(2)}`).join(" ");
+  const x0 = data[0] ? 0 : 0;
   return (
-    <div className="gauge" style={{ width: 150, height: 150 }}>
-      <svg width="150" height="150" viewBox="0 0 150 150">
-        <circle cx="75" cy="75" r={r} fill="none" stroke="var(--surface-2)" strokeWidth="11" />
-        <circle cx="75" cy="75" r={r} fill="none" stroke={tone} strokeWidth="11" strokeLinecap="round"
-          strokeDasharray={`${(pct / 100) * c} ${c}`} transform="rotate(-90 75 75)" />
-      </svg>
-      <div style={{ textAlign: "center" }}>
-        <div className="gauge-val" style={{ color: tone }}>{pct}%</div>
-        <div style={{ fontSize: 11, color: "var(--text-faint)", marginTop: 2 }}>{label}</div>
-      </div>
-    </div>
+    <svg width="100%" height={height} viewBox={`0 0 100 ${height}`} preserveAspectRatio="none" className="spark">
+      <defs>
+        <linearGradient id="area" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="var(--brand)" stopOpacity="0.4" />
+          <stop offset="100%" stopColor="var(--brand)" stopOpacity="0.02" />
+        </linearGradient>
+      </defs>
+      <polygon points={`0,${height} ${pts} 100,${height}`} fill="url(#area)" />
+      <polyline points={pts} fill="none" stroke="var(--brand)" strokeWidth="1.6" />
+      {data.map((d, i) => (
+        <circle key={i} cx={(i * w).toFixed(2)} cy={(totalH - (d.value / max) * (totalH - pad) - pad / 2).toFixed(2)}
+          r="2.2" fill="var(--accent)" />
+      ))}
+    </svg>
   );
 }
 
-export function Donut({ segments, center, centerLabel }) {
-  const total = segments.reduce((s, x) => s + x.value, 0) || 1;
-  const r = 54, c = 2 * Math.PI * r;
-  let offset = 0;
-  return (
-    <div>
-      <div className="gauge" style={{ width: 160, height: 160 }}>
-        <svg width="160" height="160" viewBox="0 0 160 160">
-          <circle cx="80" cy="80" r={r} fill="none" stroke="var(--surface-2)" strokeWidth="14" />
-          {segments.map((s) => {
-            const len = (s.value / total) * c;
-            const el = (
-              <circle key={s.label} cx="80" cy="80" r={r} fill="none" stroke={s.color} strokeWidth="14"
-                strokeDasharray={`${len} ${c - len}`} strokeDashoffset={-offset}
-                transform="rotate(-90 80 80)" strokeLinecap="butt" />
-            );
-            offset += len;
-            return el;
-          })}
-        </svg>
-        <div style={{ textAlign: "center" }}>
-          <div className="gauge-val">{center}</div>
-          <div style={{ fontSize: 11, color: "var(--text-faint)" }}>{centerLabel}</div>
-        </div>
-      </div>
-      <div className="legend">
-        {segments.map((s) => (
-          <span key={s.label}><i style={{ background: s.color }} />{s.label} · {s.value}</span>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-export function Progress({ value, tone = "var(--brand)" }) {
-  return (
-    <div className="bar-track">
-      <div className="bar-fill" style={{ width: `${Math.max(0, Math.min(100, value))}%`, background: tone }} />
-    </div>
-  );
+export function CountUp({ to }) {
+  const ref = useRef(0);
+  const [val, setVal] = useState(0);
+  useEffect(() => {
+    const start = performance.now();
+    const dur = 900;
+    function tick(now) {
+      const t = Math.min(1, (now - start) / dur);
+      const eased = 1 - Math.pow(1 - t, 3);
+      ref.current = Math.round(eased * (to ?? 0));
+      setVal(ref.current);
+      if (t < 1) requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
+  }, [to]);
+  return <>{val}</>;
 }
