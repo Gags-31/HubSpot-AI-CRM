@@ -59,4 +59,84 @@ export function CountUp({ to }) {
     requestAnimationFrame(tick);
   }, [to]);
   return <>{val}</>;
+}export function Bars({ data = [], format }) {
+  const fmtv = (v) => (format ? format(v) : v);
+  const max = Math.max(...data.map((d) => d.value), 1);
+  return (
+    <div style={{ display: "flex", alignItems: "flex-end", gap: 8, height: 140, padding: "12px 0" }}>
+      {data.map((d, i) => (
+        <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+          <div style={{ fontSize: 10, color: "var(--text-faint)" }}>{fmtv(d.value)}</div>
+          <div
+            style={{
+              width: "100%",
+              height: Math.max(4, (d.value / max) * 100) + "%",
+              background: "linear-gradient(180deg, var(--brand), var(--brand-soft))",
+              borderRadius: 6,
+              minHeight: 4,
+            }}
+          />
+          <span style={{ fontSize: 10, color: "var(--text-dim)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 74 }}>
+            {d.label}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export function Donut({ segments = [], center, centerLabel }) {
+  let offset = 0;
+  const total = segments.reduce((s, x) => s + (x.value || 0), 0) || 1;
+  const radius = 52;
+  const circumference = 2 * Math.PI * radius;
+  const strokeDash = segments && segments[0] ? ((segments[0].value / total) * circumference) + " " + circumference : "0 " + circumference;
+  // gradient removed to avoid parser oddity
+  offset = 0;
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 24, flexWrap: "wrap" }}>
+      <svg width="130" height="130" viewBox="0 0 130 130">
+        <circle cx="65" cy="65" r={radius} fill="none" stroke="var(--surface-2)" strokeWidth="16" />
+        <circle
+          cx="65"
+          cy="65"
+          r={radius}
+          fill="none"
+          stroke="var(--brand)"
+          strokeWidth="16"
+          strokeDasharray={strokeDash}
+          transform="rotate(-90 65 65)"
+        />
+        <text x="65" y="60" textAnchor="middle" fill="var(--text)" fontSize="22" fontWeight="700">
+          {center}
+        </text>
+        <text x="65" y="78" textAnchor="middle" fill="var(--text-faint)" fontSize="11">
+          {centerLabel}
+        </text>
+      </svg>
+      <div className="list" style={{ minWidth: 120 }}>
+        {segments.map((s, i) => (
+          <div key={i} className="kv">
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+              <span style={{ width: 8, height: 8, borderRadius: 999, background: s.color }} />
+              {s.label}
+            </span>
+            <b>{s.value}</b>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export function Gauge({ value = 0, label, tone = "var(--brand)" }) {
+  const clamped = Math.max(0, Math.min(1, value));
+  return (
+    <div>
+      <div style={{ height: 14, background: "var(--surface-2)", borderRadius: 999, overflow: "hidden", border: "1px solid var(--border-soft)" }}>
+        <div style={{ width: clamped * 100 + "%", height: "100%", background: tone, borderRadius: 999 }} />
+      </div>
+      {label ? <div style={{ marginTop: 6, fontSize: 12, color: "var(--text-dim)" }}>{label}</div> : null}
+    </div>
+  );
 }

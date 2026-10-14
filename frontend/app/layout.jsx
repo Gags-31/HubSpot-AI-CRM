@@ -1,17 +1,9 @@
 import "./globals.css";
-import ShellWrapper from "../components/shell";
 
-export const metadata = {
-  title: "HubSpot — Agentic AI CRM",
-  description: "Conversational customer management and automated proposal generation",
-};
+export const metadata = { title: "HubSpot", description: "CRM" };
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body>
-        <ShellWrapper>{children}</ShellWrapper>
-      </body>
-    </html>
+    <html lang="en"><body data-theme="dark"><div className="content">{children}</div></body></html>
   );
 }

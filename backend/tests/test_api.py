@@ -62,21 +62,21 @@ def test_jwt_roundtrip():
 
 
 def test_login_endpoint(client):
-    r = client.post("/security/login", params={"username": "dealer", "password": "dealer@123"})
+    r = client.post("/api/security/login", params={"username": "dealer", "password": "dealer@123"})
     assert r.status_code == 200 and "token" in r.json()
-    assert client.post("/security/login", params={"username": "dealer", "password": "bad"}).json()["authorized"] is False
+    assert client.post("/api/security/login", params={"username": "dealer", "password": "bad"}).json()["authorized"] is False
 
 
 # --------------------------------------------------------------- repository
 def test_customer_lifecycle(client):
-    created = client.post("/customers/", params={"name": "Test Buyer"}).json()
+    created = client.post("/api/customers/", params={"name": "Test Buyer"}).json()
     assert created["id"].startswith("Consumer_")
-    assert client.get(f"/customers/{created['id']}").status_code == 200
+    assert client.get(f"/api/customers/{created['id']}").status_code == 200
 
 
 def test_conversation_records_and_indexes(client):
-    cid = client.post("/customers/", params={"name": "Conv Tester"}).json()["id"]
-    r = client.post(f"/conversations/?customer_id={cid}",
+    cid = client.post("/api/customers/", params={"name": "Conv Tester"}).json()["id"]
+    r = client.post(f"/api/conversations/?customer_id={cid}",
                     json=["I need 10 control units, budget Rs 2 lakh, delivery before Friday"])
     analysis = r.json()["analysis"]
     assert analysis["entities"]["quantity_value"] == 10
@@ -84,14 +84,14 @@ def test_conversation_records_and_indexes(client):
 
 
 def test_workspace_sections(client):
-    ws = client.get("/workspace/Consumer_DEMO01").json()
+    ws = client.get("/api/workspace/Consumer_DEMO01").json()
     assert set(ws["sections"]) == set(crm.WORKSPACE_SECTIONS)
     assert ws["totals"]["orders"] >= 1
 
 
 # ---------------------------------------------------------------- proposals
 def test_proposal_generation_and_completeness(client):
-    r = client.post("/proposals/generate?customer_id=Consumer_DEMO01",
+    r = client.post("/api/proposals/generate?customer_id=Consumer_DEMO01",
                     json=["I need 50 sensor kits budget Rs 2 lakh delivery before the 20th"])
     body = r.json()
     assert body["completeness"]["score"] > 0
@@ -100,14 +100,14 @@ def test_proposal_generation_and_completeness(client):
 
 
 def test_proposal_pdf_is_valid(client):
-    pid = client.post("/proposals/generate?customer_id=Consumer_DEMO01", json=["need 5 kits"]).json()["id"]
-    pdf = client.get(f"/proposals/{pid}/pdf")
+    pid = client.post("/api/proposals/generate?customer_id=Consumer_DEMO01", json=["need 5 kits"]).json()["id"]
+    pdf = client.get(f"/api/proposals/{pid}/pdf")
     assert pdf.status_code == 200 and pdf.content[:4] == b"%PDF"
 
 
 def test_missing_info_autofill_bumps_version(client):
-    pid = client.post("/proposals/generate?customer_id=Consumer_DEMO03", json=["need 12 units"]).json()["id"]
-    updated = client.post(f"/proposals/ask-missing?customer_id=Consumer_DEMO03&field=payment&value=50%25%20advance").json()
+    pid = client.post("/api/proposals/generate?customer_id=Consumer_DEMO03", json=["need 12 units"]).json()["id"]
+    updated = client.post(f"/api/proposals/ask-missing?customer_id=Consumer_DEMO03&field=payment&value=50%25%20advance").json()
     assert updated["version"] >= 2
 
 
@@ -120,7 +120,7 @@ def test_catalog_recommendation_and_budget():
 
 
 def test_order_totals_with_tax(client):
-    order = client.post("/orders/?customer_id=Consumer_DEMO03", json=[{"product_id": "PRD-B220", "quantity": 2}]).json()
+    order = client.post("/api/orders/?customer_id=Consumer_DEMO03", json=[{"product_id": "PRD-B220", "quantity": 2}]).json()
     assert order["grand_total"] == round(order["subtotal"] * 1.18, 2)
     assert order["items"][0]["line_total"] == order["items"][0]["unit_price"] * 2
 
@@ -132,19 +132,19 @@ def test_agents_route(client, agent):
     payload = {"customer_id": "Consumer_DEMO01",
                "messages": ["I need 50 units, budget Rs 2 lakh, delivery before the 20th"],
                "query": "What did this customer ask for?"}
-    r = client.post(f"/ops/agents/{agent}", json=payload)
+    r = client.post(f"/api/ops/agents/{agent}", json=payload)
     assert r.status_code == 200
     body = r.json()
     assert body.get("routed_by") == "crm_manager"
 
 
 def test_unknown_agent_rejected(client):
-    assert client.post("/ops/agents/nope", json={}).json()["error"]
+    assert client.post("/api/ops/agents/nope", json={}).json()["error"]
 
 
 # ---------------------------------------------------------------- RAG / ML
 def test_rag_returns_grounded_answer(client):
-    client.post("/conversations/?customer_id=Consumer_DEMO01", json=["I need 300 safety relay panels"])
+    client.post("/api/conversations/?customer_id=Consumer_DEMO01", json=["I need 300 safety relay panels"])
     answer = rag.answer("what does this customer need")
     assert answer["grounded"] is True and answer["sources"]
 
@@ -162,22 +162,22 @@ def test_next_best_action_prioritises_complaints():
 
 
 def test_customer_360_and_portfolio(client):
-    view = client.get("/analytics/customer/Consumer_DEMO01").json()
+    view = client.get("/api/analytics/customer/Consumer_DEMO01").json()
     assert "prediction" in view and view["next_actions"]
-    portfolio = client.get("/analytics/portfolio").json()
+    portfolio = client.get("/api/analytics/portfolio").json()
     assert portfolio["customers"] >= 1
 
 
 # --------------------------------------------------------------- platform
 def test_telemetry_and_health(client):
-    client.get("/health")
-    metrics = client.get("/ops/metrics").json()
+    client.get("/api/health")
+    metrics = client.get("/api/ops/metrics").json()
     assert metrics["counters"].get("http_requests_total", 0) > 0
-    assert any("/health" in path for path in metrics["latency"])
+    assert any("/api/health" in path for path in metrics["latency"])
 
 
 def test_websocket_conversation(client):
-    with client.websocket_connect("/ws/conversation/Consumer_DEMO01") as ws:
+    with client.websocket_connect("/api/ws/conversation/Consumer_DEMO01") as ws:
         ready = ws.receive_json()
         assert ready["event"] == "ready"
         ws.send_json({"type": "message", "text": "I need 40 sensor kits, budget Rs 1 lakh, delivery before Monday"})
