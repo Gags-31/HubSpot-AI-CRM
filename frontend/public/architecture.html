@@ -1,0 +1,344 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>HubSpot — Architecture Flowcharts</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+  :root { color-scheme: dark; }
+  body { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; background:#0f172a; color:#e2e8f0; margin:0; }
+  header { padding:32px 24px 8px; max-width:1100px; margin:0 auto; }
+  h1 { margin:0 0 4px; font-size:26px; }
+  p.sub { color:#94a3b8; margin:0 0 20px; }
+  nav a { color:#60a5fa; margin-right:14px; font-size:14px; }
+  main { max-width:1100px; margin:0 auto; padding:0 24px 60px; }
+  section { background:#111c33; border:1px solid #1e293b; border-radius:12px; padding:18px 20px; margin:16px 0; }
+  h2 { font-size:18px; margin:4px 0 2px; }
+  h3 { font-size:15px; margin:16px 0 6px; color:#93c5fd; }
+  p { color:#cbd5e1; font-size:14px; line-height:1.6; }
+  code { background:#0b1220; padding:1px 6px; border-radius:4px; color:#fcd34d; font-size:13px; }
+  .mermaid { background:#0b1220; border-radius:8px; padding:12px; overflow:auto; }
+  pre { background:#0b1220; padding:12px; border-radius:8px; overflow:auto; font-size:13px; }
+  .tag { font-size:12px; color:#38bdf8; }
+</style>
+</head>
+<body>
+<header>
+  <h1>HubSpot — Architecture Flowcharts</h1>
+  <p class="sub">An Agentic AI-Powered Intelligent CRM for Conversational Customer Management and Automated Proposal Generation</p>
+  <nav>
+    <a href="/">Home</a><a href="/web/">Website</a><a href="/web/platform/">Platform</a><a href="/docs">API Docs</a><a href="/health">Health</a>
+  </nav>
+</header>
+<main>
+
+<section id="m01">
+  <h2>01 · Conversational CRM Application <span class="tag">frontend/, app/routers/</span></h2>
+  <p>The dealer or consumer talks; every button maps to an API action that the agent layer handles.</p>
+  <div class="mermaid">
+flowchart TD
+  U[Consumer / Dealer] --> UI[Conversational UI]
+  UI --> B1[Start / End Conversation]
+  UI --> B2[Generate Proposal]
+  UI --> B3[View Customer]
+  UI --> B4[Ask AI]
+  UI --> B5[Approve / Send]
+  UI --> B6[Follow Up]
+  B1 --> API[FastAPI Routers]
+  B2 --> API
+  B3 --> API
+  B4 --> API
+  B5 --> API
+  B6 --> API
+  </div>
+</section>
+
+<section id="m02">
+  <h2>02 · Consumer-Specific Digital Workspace <span class="tag">app/routers/workspace.py</span></h2>
+  <p>Every consumer gets an auto-created digital workspace with 8 standard sections.</p>
+  <div class="mermaid">
+flowchart LR
+  C[New consumer detected] --> W[Create Consumer_00X workspace]
+  W --> P[Profile]
+  W --> CV[Conversations]
+  W --> R[Requirements]
+  W --> PR[Products]
+  W --> PO[Proposals]
+  W --> D[Documents]
+  W --> F[Followups]
+  W --> H[Interaction_History]
+  CV --> P
+  R --> PR
+  PR --> PO
+  PO --> F
+  F --> H
+  </div>
+</section>
+
+<section id="m03">
+  <h2>03 · Conversation Recording System <span class="tag">app/services/stt.py, app/routers/conversations.py</span></h2>
+  <p>Voice is transcribed with open-source Whisper; every exchange is timestamped and stored.</p>
+  <div class="mermaid">
+flowchart TD
+  V[Voice conversation] --> W[Whisper speech-to-text]
+  T[Text conversation] --> ST[(Conversation store)]
+  W --> ST
+  ST --> M[Metadata: timestamp, participants]
+  M --> SUM[Summary]
+  M --> ENT[Extracted entities]
+  ENT --> REQ[Requirements]
+  ENT --> AGR[Agreements]
+  ENT --> SEN[Sentiment]
+  ENT --> TOP[Topics]
+  ENT --> ACT[Action items]
+  </div>
+</section>
+
+<section id="m04">
+  <h2>04 · NLP Conversation Intelligence <span class="tag">app/services/nlp.py</span></h2>
+  <p>Conversations are not just stored, they are understood.</p>
+  <div class="mermaid">
+flowchart TD
+  IN[Conversation text] --> NER[Named Entity Recognition]
+  IN --> ID[Intent Detection]
+  IN --> SA[Sentiment Analysis]
+  IN --> RE[Requirement Extraction]
+  IN --> PI[Product Identification]
+  IN --> PE[Price / Quantity / Date Extraction]
+  IN --> AD[Agreement Detection]
+  IN --> TC[Topic Classification]
+  IN --> SU[Summarization]
+  IN --> CD[Complaint Detection]
+  IN --> SS[Semantic Similarity]
+  RE --> OUT[Structured requirement set]
+  AD --> OUT
+  SU --> OUT
+  </div>
+</section>
+
+<section id="m05">
+  <h2>05 · Multi-Agent AI Architecture <span class="tag">app/agents/agents.py</span></h2>
+  <p>The CRM Manager orchestrator routes work to specialised agents.</p>
+  <div class="mermaid">
+flowchart TD
+  ORCH[CRM Manager Agent] --> A1[Consumer Agent]
+  ORCH --> A2[Conversation Agent]
+  ORCH --> A3[NLP Intelligence Agent]
+  ORCH --> A4[Proposal Agent]
+  ORCH --> A5[Recommendation Agent]
+  ORCH --> A6[Follow-Up Agent]
+  ORCH --> A7[Customer Intelligence Agent]
+  ORCH --> A8[Next-Best-Action Agent]
+  ORCH --> A9[Assistant / RAG Agent]
+  ORCH --> A10[Voice / Whisper Agent]
+  ORCH --> A11[ML Agent]
+  A1 --> SVC[Services: nlp, llm, vectorstore, rag, proposal, ml, catalog, memory, crm]
+  A2 --> SVC
+  A3 --> SVC
+  A4 --> SVC
+  A5 --> SVC
+  A6 --> SVC
+  A7 --> SVC
+  A8 --> SVC
+  </div>
+</section>
+
+<section id="m06">
+  <h2>06 · Automated Proposal Generation <span class="tag">app/services/proposal.py</span></h2>
+  <div class="mermaid">
+flowchart TD
+  CON[Consumer to Dealer conversation] --> REC[Conversation Recording]
+  REC --> STT[Speech to Text]
+  STT --> NLP[NLP Processing]
+  NLP --> REQ[Requirement Extraction]
+  REQ --> AGR[Agreement Detection]
+  AGR --> PA[Proposal Agent]
+  PA --> TERMS[Terms: product, qty, price, discount, delivery, payment, warranty]
+  TERMS --> OUT[PDF / Digital Proposal]
+  </div>
+</section>
+
+<section id="m07">
+  <h2>07 · Intelligent Missing-Information Detection <span class="tag">app/services/proposal.py</span></h2>
+  <div class="mermaid">
+flowchart TD
+  T[Extracted terms] --> CHK{Missing field?}
+  CHK -- no --> OK[Emit proposal]
+  CHK -- yes --> ASK[Auto-ask dealer]
+  ASK --> UP[Update terms]
+  UP --> CHK
+  </div>
+</section>
+
+<section id="m08">
+  <h2>08 · Big Data Architecture <span class="tag">app/streaming/</span></h2>
+  <div class="mermaid">
+flowchart TD
+  DATA[Consumer conversations, audio, profiles, transactions, proposals] --> STREAM[Event Stream]
+  STREAM --> K[Apache Kafka]
+  K --> S[Apache Spark]
+  S --> F1[Feature Generation]
+  S --> F2[Analytics]
+  S --> F3[ML Processing]
+  F1 --> CI[Customer Intelligence]
+  F2 --> CI
+  F3 --> CI
+  CI --> AG[AI Agents]
+  K --> DS[(Distributed Storage)]
+  </div>
+</section>
+
+<section id="m09">
+  <h2>09 · Customer 360° Intelligence <span class="tag">app/routers/analytics.py</span></h2>
+  <div class="mermaid">
+flowchart LR
+  S1[Conversations] --> X[Customer 360 Engine]
+  S2[Orders] --> X
+  S3[Proposals] --> X
+  S4[Sentiment] --> X
+  S5[Memory] --> X
+  X --> O1[Total conversations]
+  X --> O2[Products of interest]
+  X --> O3[Average purchase]
+  X --> O4[Current requirement]
+  X --> O5[Purchase probability]
+  X --> O6[Churn risk]
+  </div>
+</section>
+
+<section id="m10">
+  <h2>10 · Customer Memory <span class="tag">app/services/memory.py</span></h2>
+  <div class="mermaid">
+flowchart TD
+  INT[Every interaction] --> MEM[(Customer Memory Layer)]
+  MEM --> M1[Previous requirements]
+  MEM --> M2[Previous purchases]
+  MEM --> M3[Preferences]
+  MEM --> M4[Complaints]
+  MEM --> M5[Proposals]
+  MEM --> M6[Negotiations]
+  MEM --> M7[Agreements]
+  MEM --> M8[Communication history]
+  MEM --> NEXT[Feeds proposals, prediction, next action]
+  </div>
+</section>
+
+<section id="m11">
+  <h2>11 · RAG-Based AI CRM Assistant <span class="tag">app/services/rag.py</span></h2>
+  <div class="mermaid">
+flowchart LR
+  Q[Dealer question] --> STR[Structured DB search]
+  Q --> VS[Vector search]
+  STR --> LLM[LLM reasoning]
+  VS --> LLM
+  MEM[Customer memory] --> LLM
+  LLM --> ANS[Grounded answer with sources]
+  </div>
+</section>
+
+<section id="m12">
+  <h2>12 · Predictive Customer Intelligence <span class="tag">app/services/predictive.py</span></h2>
+  <div class="mermaid">
+flowchart TD
+  H[Historical interaction data] --> FEAT[Feature generation]
+  FEAT --> M1[Purchase probability]
+  FEAT --> M2[Lead conversion probability]
+  FEAT --> M3[Churn risk]
+  FEAT --> M4[Customer lifetime value]
+  FEAT --> M5[Proposal acceptance probability]
+  FEAT --> M6[Engagement + product preference]
+  M1 --> ACT[AI recommendation]
+  M3 --> ACT
+  M5 --> ACT
+  </div>
+</section>
+
+<section id="m13">
+  <h2>13 · AI Next-Best-Action Engine <span class="tag">app/services/next_action.py</span></h2>
+  <div class="mermaid">
+flowchart TD
+  IN[History + current conversation + prediction + requirement] --> R[Score every candidate action]
+  R --> A1[Call Customer]
+  R --> A2[Send Message]
+  R --> A3[Generate Proposal]
+  R --> A4[Recommend Product]
+  R --> A5[Offer Discount]
+  R --> A6[Schedule Follow-up]
+  R --> A7[Escalate Complaint]
+  R --> A8[Request Missing Information]
+  R --> A9[Do Nothing]
+  A1 --> TOP[Ranked top action]
+  A2 --> TOP
+  A3 --> TOP
+  </div>
+</section>
+
+<section id="m14">
+  <h2>14 · Human-AI Interaction Model <span class="tag">backend/main.py, frontend/</span></h2>
+  <div class="mermaid">
+flowchart LR
+  H1[Open Application] --> H2[Talk / Communicate]
+  H2 --> H3[Press Required Button]
+  H3 --> H4[Review AI Output]
+  H4 --> H5[Approve / Send]
+  H4 --> AI[AI performs: record, transcribe, extract, organise, remember, predict, generate, recommend, follow up]
+  </div>
+</section>
+
+<section id="m15">
+  <h2>15 · Security &amp; Privacy <span class="tag">app/security.py</span></h2>
+  <div class="mermaid">
+flowchart TD
+  REQ[Incoming request] --> AUTH{API key / token valid?}
+  AUTH -- no --> DENY[401]
+  AUTH -- yes --> RBAC[Role based access control]
+  RBAC --> CONSENT{Recording consent?}
+  CONSENT -- no --> NOLOG[Do not store conversation]
+  CONSENT -- yes --> EXEC[Execute + encrypt at rest]
+  EXEC --> AUD[Audit log]
+  AUD --> RET[Retention policy]
+  </div>
+</section>
+
+<section id="m16">
+  <h2>16 · AI CRM Dashboard (full system) <span class="tag">end-to-end</span></h2>
+  <div class="mermaid">
+flowchart TD
+  U[Consumer / Dealer] --> APP[Conversational Application]
+  APP --> COM[Communication Layer]
+  COM --> REC[Conversation Recording]
+  REC --> STT[Speech-to-Text / Whisper]
+  STT --> KFK[Apache Kafka]
+  KFK --> NLPP[NLP Pipeline]
+  KFK --> SPK[Apache Spark Big Data Engine]
+  NLPP --> C360[Customer 360 Intelligence Engine]
+  SPK --> C360
+  C360 --> ORCH[AI Agent Orchestrator - CRM Manager]
+  ORCH --> CONV[Conversation Agent]
+  ORCH --> PROP[Proposal Agent]
+  ORCH --> RECO[Recommendation Agent]
+  ORCH --> NBA[Next-Best-Action Agent]
+  ORCH --> VOICE[Voice / Whisper Agent]
+  ORCH --> MLA[ML Agent]
+  CONV --> MEM[Customer Memory]
+  PROP --> PGEN[Proposal Generator + PDF]
+  RECO --> NACT[Catalog Engine]
+  MEM --> RAG[RAG + Vector Store]
+  PGEN --> RAG
+  NACT --> MLM[Churn / Purchase Models]
+  MLM --> NBA
+  RAG --> PG[(SQLite / PostgreSQL)]
+  RAG --> VDB[(Vector Table / Vector DB)]
+  PG --> DASH[AI CRM Dashboard + Website]
+  VDB --> DASH
+  DASH --> OBS[Telemetry + Audit]
+  </div>
+</section>
+
+</main>
+<script>
+  mermaid.initialize({ startOnLoad:true, theme:'dark', securityLevel:'loose' });
+</script>
+</body>
+</html>

@@ -97,10 +97,7 @@ export default function Platform() {
         <div className="card">
           <div className="card-title"><div><h3>Churn / purchase model</h3><p>Features: {(model?.features ?? []).join(", ")}</p></div></div>
           {train ? <pre style={{ maxHeight: 200 }}>{JSON.stringify(train, null, 2)}</pre> : <Skeleton rows={4} />}
-          <button className="btn" style={{ marginTop: 12 }} onClick={async () => {
-            const r = await api.trainModel(); setTrain(r); refresh();
-            push(r.trained ? `Model trained · CV ${r.mean_cv_accuracy ?? "n/a"}` : `Training skipped: ${r.reason}`, r.trained ? "ok" : "warn");
-          }}>Train model</button>
+          <div className="badge brand" style={{ marginTop: 12 }}>Model status: heuristic / trained on demand</div>
         </div>
 
         <div className="card">

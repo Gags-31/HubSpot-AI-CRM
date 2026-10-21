@@ -140,3 +140,4 @@ export function Gauge({ value = 0, label, tone = "var(--brand)" }) {
     </div>
   );
 }
+export function Progress({ value = 0 }) { return (<div style={{ height: 10, background: "var(--surface-2)", borderRadius: 999, overflow: "hidden" }}><div style={{ width: (value * 100) + "%", height: "100%", background: "linear-gradient(90deg, var(--brand), var(--accent))" }} /></div>); }
