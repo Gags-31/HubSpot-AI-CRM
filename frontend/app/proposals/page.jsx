@@ -94,7 +94,7 @@ export default function Proposals() {
               </div>
               <pre style={{ maxHeight: 360 }}>{active.body}</pre>
               <div className="row" style={{ marginTop: 12 }}>
-                <a className="btn" href={`/proposals/${active.id}/pdf`} target="_blank">Download PDF</a>
+                <a className="btn" href={`/api/proposals/${active.id}/pdf`} target="_blank">Download PDF</a>
                 <button className="btn ghost" onClick={() => setStatus(active.id, "approved")}>Approve</button>
                 <button className="btn ghost" onClick={() => setStatus(active.id, "sent")}>Mark sent</button>
               </div>

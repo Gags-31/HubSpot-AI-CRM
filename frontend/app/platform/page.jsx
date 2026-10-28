@@ -17,7 +17,7 @@ export default function Platform() {
   async function refresh() {
     const [a, m, ml, j, au, l] = await Promise.all([
       api.agents(), api.metrics(), api.mlModel(), api.jobs(), api.audit(15),
-      fetch("/ops/llm").then((r) => r.json()),
+      fetch("/api/ops/llm").then((r) => r.json()),
     ]);
     setAgents(a); setMetrics(m); setModel(ml); setJobs(j); setAudit(au); setLlm(l);
   }

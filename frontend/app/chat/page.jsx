@@ -18,6 +18,7 @@ export default function Chat() {
   const [entities, setEntities] = useState(null);
   const [proposal, setProposal] = useState(null);
   const [connected, setConnected] = useState(false);
+  const [httpMode, setHttpMode] = useState(false);
   const [answers, setAnswers] = useState({});
   const [phase, setPhase] = useState("idle");
   const ws = useRef(null);
@@ -31,9 +32,14 @@ export default function Chat() {
     if (ws.current) ws.current.close();
     const socket = new WebSocket(wsUrl(id));
     ws.current = socket;
-    socket.onopen = () => { setConnected(true); push(`Live channel open for ${id}`, "ok"); };
-    socket.onclose = () => setConnected(false);
-    socket.onerror = () => push("WebSocket error", "warn");
+    socket.onopen = () => { setConnected(true); setHttpMode(false); push(`Live channel open for ${id}`, "ok"); };
+    socket.onclose = () => { if (!httpMode) setConnected(false); };
+    socket.onerror = () => {
+      if (!httpMode) {
+        setHttpMode(true); setConnected(true);
+        push("Live channel unavailable - using instant HTTP mode", "warn");
+      }
+    };
     socket.onmessage = (e) => {
       const m = JSON.parse(e.data);
       if (m.event === "transcript") setPhase("understanding…");
@@ -42,9 +48,20 @@ export default function Chat() {
     };
   }
 
-  function send(text) {
+  async function send(text) {
     const t = (text ?? input).trim();
     if (!t) return;
+    if (httpMode) {
+      setTurns((v) => [...v, { text: t, role: "consumer" }]);
+      setInput("");
+      setPhase("understanding...");
+      try {
+        const r = await api.conversation(customerId, [...turns.map(x => x.text), t]);
+        if (r.analysis?.entities) setEntities(r.analysis.entities);
+        setPhase("idle");
+      } catch (e) { setPhase("idle"); push(`Analysis failed: ${e.message}`, "warn"); }
+      return;
+    }
     if (!ws.current || ws.current.readyState !== 1) return push("Connect to the live channel first", "warn");
     ws.current.send(JSON.stringify({ type: "message", role: "consumer", text: t }));
     setTurns((v) => [...v, { text: t, role: "consumer" }]);
@@ -77,7 +94,17 @@ export default function Chat() {
           <span className={`badge ${connected ? "ok" : "warn"}`}>{connected ? "streaming" : "not connected"}</span>
           <span className="spacer" />
           {phase !== "idle" && <span className="badge brand">{phase}</span>}
-          <button className="btn ghost tiny" onClick={() => ws.current?.send(JSON.stringify({ type: "propose" }))}>Generate proposal</button>
+          <button className="btn ghost tiny" onClick={async () => {
+  if (httpMode) {
+    try {
+      const r = await api.generateProposal(customerId, [...turns.map(x => x.text), input].filter(Boolean));
+      setProposal({ ...r, proposal_id: r.id });
+      push(`Proposal ${r.id} ready`, "ok");
+    } catch (e) { push(`Proposal failed: ${e.message}`, "warn"); }
+  } else {
+    ws.current?.send(JSON.stringify({ type: "propose" }));
+  }
+}}>Generate proposal</button>
           <button className="btn ghost tiny" onClick={() => ws.current?.send(JSON.stringify({ type: "close" }))}>End conversation</button>
         </div>
       </div>
@@ -156,7 +183,7 @@ export default function Chat() {
                   </div>
                 )}
                 <div className="row" style={{ marginTop: 12 }}>
-                  <a className="btn ghost tiny" href={`/proposals/${proposal.proposal_id}/pdf`} target="_blank">Download PDF</a>
+                  <a className="btn ghost tiny" href={`/api/proposals/${proposal.proposal_id}/pdf`} target="_blank">Download PDF</a>
                   <span className="badge">{proposal.engine}</span>
                 </div>
               </>
@@ -166,7 +193,17 @@ export default function Chat() {
                   Ask the Proposal agent to build a proposal from this conversation — it fills in terms,
                   flags what is missing and exports a PDF.
                 </p>
-                <button className="btn" onClick={() => ws.current?.send(JSON.stringify({ type: "propose" }))} disabled={!connected}>
+                <button className="btn" onClick={async () => {
+  if (httpMode) {
+    try {
+      const r = await api.generateProposal(customerId, turns.map(x => x.text));
+      setProposal({ ...r, proposal_id: r.id });
+      push(`Proposal ${r.id} ready`, "ok");
+    } catch (e) { push(`Proposal failed: ${e.message}`, "warn"); }
+  } else {
+    ws.current?.send(JSON.stringify({ type: "propose" }));
+  }
+}} disabled={!connected}>
                   Generate proposal now
                 </button>
               </>

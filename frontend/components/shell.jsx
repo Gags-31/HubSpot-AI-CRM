@@ -9,7 +9,7 @@ const NAV = [
   { group: "Operations", items: [["/platform/", "Platform"]] },
 ];
 
-const REFERENCE = [["/architecture.html", "Architecture"], ["/docs", "API reference"]];
+const REFERENCE = [["/architecture.html", "Architecture"], ["/api/docs", "API reference"]];
 
 const TITLES = Object.fromEntries(NAV.flatMap((s) => s.items).concat(REFERENCE));
 

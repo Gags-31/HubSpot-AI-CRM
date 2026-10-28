@@ -11,12 +11,12 @@ const ITEMS = [
   { group: "Navigate", label: "Proposals", desc: "Versioned + PDF", href: "/proposals/" },
   { group: "Navigate", label: "Platform", desc: "Agents, ML, jobs", href: "/platform/" },
   { group: "Reference", label: "Architecture", desc: "16 module flowcharts", href: "/architecture.html" },
-  { group: "Reference", label: "API docs", desc: "Swagger / OpenAPI", href: "/docs" },
+  { group: "Reference", label: "API docs", desc: "Swagger / OpenAPI", href: "/api/docs" },
 ];
 const ACTIONS = [
-  { group: "Action", label: "Seed demo data", desc: "POST /ops/seed", run: async (api) => (await fetch("/ops/seed", { method: "POST" })).json() },
-  { group: "Action", label: "Train ML model", desc: "POST /ops/ml/train", run: async (api) => (await fetch("/ops/ml/train", { method: "POST" })).json() },
-  { group: "Action", label: "Run Spark job", desc: "POST /ops/stream/spark", run: async (api) => (await fetch("/ops/stream/spark")).json() },
+  { group: "Action", label: "Seed demo data", desc: "POST /api/ops/seed", run: async (api) => (await fetch("/api/ops/seed", { method: "POST" })).json() },
+  { group: "Action", label: "Train ML model", desc: "POST /api/ops/ml/train", run: async (api) => (await fetch("/api/ops/ml/train", { method: "POST" })).json() },
+  { group: "Action", label: "Run Spark job", desc: "POST /api/ops/stream/spark", run: async (api) => (await fetch("/api/ops/stream/spark")).json() },
 ];
 
 export default function CommandPalette() {

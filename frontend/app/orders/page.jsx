@@ -37,7 +37,7 @@ export default function Orders() {
 
   async function advance(id, current) {
     const next = STATUSES[Math.min(STATUSES.length - 1, STATUSES.indexOf(current) + 1)];
-    await fetch(`/orders/${id}/status?status=${next}`, { method: "POST" });
+    await fetch(`/api/orders/${id}/status?status=${next}`, { method: "POST" });
     setOrders(await api.orders());
     push(`${id} → ${next}`, "ok");
   }
