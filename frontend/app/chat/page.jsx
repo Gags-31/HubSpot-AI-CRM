@@ -19,6 +19,9 @@ export default function Chat() {
   const [proposal, setProposal] = useState(null);
   const [connected, setConnected] = useState(false);
   const [httpMode, setHttpMode] = useState(false);
+  const [recording, setRecording] = useState(false);
+  const [transcript, setTranscript] = useState("");
+  const recognitionRef = useRef(null);
   const [answers, setAnswers] = useState({});
   const [phase, setPhase] = useState("idle");
   const ws = useRef(null);
@@ -66,6 +69,37 @@ export default function Chat() {
     ws.current.send(JSON.stringify({ type: "message", role: "consumer", text: t }));
     setTurns((v) => [...v, { text: t, role: "consumer" }]);
     setInput("");
+  }
+
+  function startRecording() {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) { push("Speech recognition not supported in this browser", "warn"); return; }
+    if (recording) { stopRecording(); return; }
+    const rec = new SR();
+    rec.lang = "en-IN";
+    rec.interimResults = true;
+    rec.continuous = true;
+    rec.onresult = (e) => {
+      let txt = "";
+      for (let i = 0; i < e.results.length; i++) txt += e.results[i][0].transcript + " ";
+      setTranscript(txt.trim());
+    };
+    rec.onerror = (e) => { push(`Mic error: ${e.error}`, "warn"); setRecording(false); };
+    rec.onend = () => { setRecording(false); };
+    recognitionRef.current = rec;
+    setTranscript("");
+    setRecording(true);
+    try { rec.start(); } catch (e) { setRecording(false); push("Could not start microphone", "warn"); }
+  }
+  function stopRecording() {
+    try { recognitionRef.current?.stop(); } catch {}
+    setRecording(false);
+  }
+  async function sendRecording() {
+    const t = transcript.trim();
+    if (!t) { push("No speech captured", "warn"); return; }
+    await send(t);
+    setTranscript("");
   }
 
   async function fill(field) {
@@ -132,10 +166,23 @@ export default function Chat() {
             <div ref={bottom} />
           </div>
           <div className="composer">
-            <input value={input} placeholder="Type the customer's message…" onChange={(e) => setInput(e.target.value)}
+            <input value={input} placeholder="Type the customer's message..." onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && send()} />
             <button className="btn" onClick={() => send()} disabled={!connected}>Send</button>
+            <button className={`btn ${recording ? "danger" : "ghost tiny"}`} onClick={startRecording} disabled={!connected} title="Record conversation with microphone">
+              {recording ? "Stop mic" : "Mic"}
+            </button>
           </div>
+          {transcript && (
+            <div className="card tight" style={{ marginTop: 8 }}>
+              <div className="stat-label">Captured speech</div>
+              <p style={{ margin: "4px 0 8px" }}>{transcript}</p>
+              <div className="row">
+                <button className="btn tiny" onClick={sendRecording} disabled={!connected}>Send as turn</button>
+                <button className="btn ghost tiny" onClick={() => setTranscript("")}>Clear</button>
+              </div>
+            </div>
+          )}
           <div className="row tight" style={{ marginTop: 10 }}>
             {SAMPLES.map((s, i) => (
               <button key={i} className="pill" onClick={() => send(s)}>{s.slice(0, 38)}…</button>
