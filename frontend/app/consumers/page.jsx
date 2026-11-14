@@ -7,6 +7,8 @@ import { Empty, KV, Skeleton, Toasts, useToasts } from "../../components/ui";
 export default function Consumers() {
   const [customers, setCustomers] = useState([]);
   const [name, setName] = useState("");
+  const [search, setSearch] = useState("");
+  const [filterSent, setFilterSent] = useState("all");
   const [selected, setSelected] = useState("Consumer_DEMO01");
   const [ws, setWs] = useState(null);
   const [an, setAn] = useState(null);
@@ -49,8 +51,22 @@ export default function Consumers() {
             style={{ maxWidth: 260 }} />
           <button className="btn" onClick={create}>Create consumer workspace</button>
           <span className="spacer" />
+          <input placeholder="Search customers..." value={search} onChange={(e) => setSearch(e.target.value)} style={{ maxWidth: 180 }} />
+          <select value={filterSent} onChange={(e) => setFilterSent(e.target.value)} style={{ maxWidth: 140 }}>
+            <option value="all">All sentiments</option>
+            <option value="Positive">Positive</option>
+            <option value="Neutral">Neutral</option>
+            <option value="Negative">Negative</option>
+          </select>
           <div className="pill-row">
-            {customers.slice(0, 8).map((c) => (
+            {customers.filter((c) => {
+              const q = search.toLowerCase();
+              if (q && !c.id.toLowerCase().includes(q) && !(c.name || "").toLowerCase().includes(q) && !(c.contact || "").toLowerCase().includes(q)) return false;
+              if (filterSent !== "all") {
+                // sentiment not on customer list directly; keep all for now
+              }
+              return true;
+            }).slice(0, 12).map((c) => (
               <button key={c.id} className={`pill ${selected === c.id ? "active" : ""}`} onClick={() => load(c.id)}>
                 {c.id.replace("Consumer_", "")}
               </button>

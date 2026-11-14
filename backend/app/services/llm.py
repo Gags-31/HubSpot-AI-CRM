@@ -6,9 +6,22 @@ import os
 import urllib.error
 import urllib.request
 
-API_KEY = os.getenv("OPENAI_API_KEY", "")
-BASE_URL = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1")
-MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+# LLM provider resolution: OpenAI -> Groq (free tier) -> none (template fallback)
+OPENAI_KEY = os.getenv("OPENAI_API_KEY", "")
+GROQ_KEY = os.getenv("GROQ_API_KEY", "")
+
+if OPENAI_KEY:
+    API_KEY = OPENAI_KEY
+    BASE_URL = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1")
+    MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+elif GROQ_KEY:
+    API_KEY = GROQ_KEY
+    BASE_URL = os.getenv("GROQ_BASE_URL", "https://api.groq.com/openai/v1")
+    MODEL = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
+else:
+    API_KEY = ""
+    BASE_URL = ""
+    MODEL = ""
 
 SYSTEM_PROMPT = (
     "You are the reasoning core of HubSpot, an AI-first CRM for dealers. "
@@ -18,6 +31,11 @@ SYSTEM_PROMPT = (
 
 def available() -> bool:
     return bool(API_KEY)
+
+def provider() -> str:
+    if OPENAI_KEY: return "openai"
+    if GROQ_KEY: return "groq"
+    return "none"
 
 
 def chat(messages: list[dict], context: str = "", max_tokens: int = 400) -> str:
