@@ -10,6 +10,8 @@ export default function Consumers() {
   const [search, setSearch] = useState("");
   const [filterSent, setFilterSent] = useState("all");
   const [selected, setSelected] = useState("Consumer_DEMO01");
+  const [timeline, setTimeline] = useState([]);
+  const [orders, setOrders] = useState([]);
   const [ws, setWs] = useState(null);
   const [an, setAn] = useState(null);
   const [audit, setAudit] = useState([]);
@@ -26,8 +28,19 @@ export default function Consumers() {
 
   async function load(id) {
     setSelected(id);
-    setWs(await api.workspace(id));
-    setAn(await api.analytics(id));
+    const [w, a, o, p] = await Promise.all([api.workspace(id), api.analytics(id), api.orders(id), api.proposals(id)]);
+    setWs(w); setAn(a); setOrders(o);
+    // build activity timeline
+    const ev = [];
+    (w.sections?.Conversations || []).forEach((c) => ev.push({ ts: c.ts || c.started_at || new Date().toISOString(), type: "conversation", label: "Conversation recorded", detail: c.summary || c.conversation_id }));
+    (w.sections?.Requirements || []).forEach((r) => ev.push({ ts: r.created_at || new Date().toISOString(), type: "requirement", label: "Requirement extracted", detail: r.requirement_id }));
+    (w.sections?.Products || []).forEach((p) => ev.push({ ts: p.created_at || new Date().toISOString(), type: "order", label: "Order placed", detail: (p.items || []).join(", ") + (p.order_id ? ` (${p.order_id})` : "") }));
+    (w.sections?.Proposals || []).forEach((p) => ev.push({ ts: p.created_at || new Date().toISOString(), type: "proposal", label: "Proposal generated", detail: `${p.proposal_id} v${p.version}` }));
+    (w.sections?.Followups || []).forEach((f) => ev.push({ ts: f.created_at || new Date().toISOString(), type: "followup", label: "Follow-up", detail: f.message || f.field || JSON.stringify(f) }));
+    o.forEach((ord) => ev.push({ ts: ord.created_at, type: "order", label: `Order ${ord.status}`, detail: `${ord.id} — ₹${fmt(ord.grand_total)}` }));
+    p.forEach((pr) => ev.push({ ts: pr.created_at, type: "proposal", label: `Proposal ${pr.status}`, detail: `${pr.id} v${pr.version}` }));
+    ev.sort((a, b) => String(b.ts).localeCompare(String(a.ts)));
+    setTimeline(ev);
   }
 
   async function create() {
@@ -145,6 +158,24 @@ export default function Consumers() {
             </>
           ) : <Skeleton rows={6} />}
         </div>
+      </div>
+
+      <div className="section-title">Activity timeline</div>
+      <div className="card">
+        {timeline.length === 0 ? <Empty>No activity yet for this consumer.</Empty> : (
+          <div className="list">
+            {timeline.slice(0, 15).map((e, i) => (
+              <div key={i} className="row" style={{ gap: 10, padding: "6px 0", borderBottom: "1px solid var(--border-soft)" }}>
+                <span className={`badge ${e.type === "order" ? "ok" : e.type === "proposal" ? "brand" : ""}`}>{e.type}</span>
+                <div style={{ flex: 1 }}>
+                  <b style={{ fontSize: 13 }}>{e.label}</b>
+                  <div style={{ fontSize: 12, color: "var(--text-dim)" }}>{e.detail}</div>
+                </div>
+                <span className="mono" style={{ fontSize: 11 }}>{String(e.ts).slice(0, 16).replace("T", " ")}</span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="section-title">Memory &amp; audit</div>

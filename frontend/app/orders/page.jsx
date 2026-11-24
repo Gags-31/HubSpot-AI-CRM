@@ -14,6 +14,19 @@ export default function Orders() {
   const [last, setLast] = useState(null);
   const { items, push } = useToasts();
 
+  function exportCSV() {
+    const rows = [["Order ID", "Customer", "Status", "Items", "Subtotal", "Tax", "Grand Total", "Created"]];
+    orders.forEach((o) => {
+      rows.push([o.id, o.customer_id, o.status, (o.items || []).map((i) => `${i.name} x${i.quantity}`).join("; "), o.subtotal, o.tax, o.grand_total, o.created_at]);
+    });
+    const csv = rows.map((r) => r.map((v) => `"${String(v ?? "").replace(/"/g, '""')}"`).join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = "orders.csv"; a.click();
+    URL.revokeObjectURL(url);
+  }
+
   useEffect(() => {
     setCart(JSON.parse(localStorage.getItem("hubspot_cart") || "[]"));
     api.products().then((d) => setProducts(d.products)).catch(() => {});
@@ -98,7 +111,10 @@ export default function Orders() {
         </div>
       </div>
 
-      <div className="section-title">Order history ({orders.length})</div>
+      <div className="section-title" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <span>Order history ({orders.length})</span>
+        <button className="btn ghost tiny" onClick={exportCSV}>Export CSV</button>
+      </div>
       <div className="card">
         {orders.length === 0 ? <Skeleton rows={3} /> : (
           <table>

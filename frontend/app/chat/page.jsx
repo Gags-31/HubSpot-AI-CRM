@@ -140,6 +140,7 @@ export default function Chat() {
   }
 }}>Generate proposal</button>
           <button className="btn ghost tiny" onClick={() => ws.current?.send(JSON.stringify({ type: "close" }))}>End conversation</button>
+          <button className="btn ghost tiny" onClick={() => { setTurns([]); setEntities(null); setProposal(null); setAnswers({}); setPhase("idle"); push("Conversation cleared", "ok"); }}>Clear</button>
         </div>
       </div>
 
